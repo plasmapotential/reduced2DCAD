@@ -1,10 +1,18 @@
 import reducedCADClasses as RC
 
 #inputs
-HEATpath = '/home/tom/source/HEAT/github/source'
-STPfile = '/home/tom/work/CFS/projects/reducedCAD/VVcompsAdjusted.step'
-STP2D = '/home/tom/work/CFS/projects/reducedCAD/2Dout.step'
+#for use in docker container:
+#HEATpath = '/root/source/HEAT'
+#path = '/root/files/'
+#STPfile = path + 'VVcompsAdjusted.step'
+#STP2D = path + '2Dout.step'
+
+#for use in tom's dev env
 path = '/home/tom/work/CFS/projects/reducedCAD/'
+STPfile = path + 'VVcompsAdjusted.step'
+STP2D = path + '2Dout.step'
+HEATpath = '/home/tom/source/HEAT/github/source'
+
 rMax = 5000
 zMax = 10000
 phi = 32.0 #degrees
@@ -32,7 +40,7 @@ import reducedCADapp as GUI
 #contourList plots
 fig = CAD2D.getContourPlot()
 #mesh overlay
-#fig = mesh.addMeshPlots2Fig(fig, solutions)
+fig = mesh.addMeshPlots2Fig(fig, solutions)
 
 GUI.generateLayout(fig, df)
 
