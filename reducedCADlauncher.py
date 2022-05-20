@@ -2,16 +2,16 @@ import reducedCADClasses as RC
 import argparse
 #inputs
 #for use in docker container:
-#HEATpath = '/root/source/HEAT'
-#path = '/root/files/'
-#STPfile = path + 'VVcompsAdjusted.step'
-#STP2D = path + '2Dout.step'
-
-#for use in tom's dev env
-path = '/home/tom/work/CFS/projects/reducedCAD/'
+HEATpath = '/root/source/HEAT'
+path = '/root/files/'
 STPfile = path + 'VVcompsAdjusted.step'
 STP2D = path + '2Dout.step'
-HEATpath = '/home/tom/source/HEAT/github/source'
+
+#for use in tom's dev env
+#path = '/home/tom/work/CFS/projects/reducedCAD/'
+#STPfile = path + 'VVcompsAdjusted.step'
+#STP2D = path + '2Dout.step'
+#HEATpath = '/home/tom/source/HEAT/github/source'
 
 rMax = 5000
 zMax = 10000
