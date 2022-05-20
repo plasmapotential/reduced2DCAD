@@ -1,0 +1,55 @@
+#docker-compose.yml
+#Engineer:  T. Looby
+#Date: 20220124
+#Description: Docker recipe for development.  Generates environment.
+#             requires user to have the volumes below locally on host
+#             if not, comment out the line for the dir you don't have
+#             if so, change paths to match your machine
+version: "3"
+
+services:
+  CADTOOLS_GUI:
+    image: "plasmapotential/heat:v2.0.0"
+    ports:
+      - "8050:8050"
+    volumes:
+      #change volumes below to match your development (host) machine
+      #format is: /host/path:/container/path
+      #user should not edit container paths
+      #options for windows and linux below
+      #
+      # === FOR LINUX ===
+#      # HEAT source code from github
+#      - /home/tom/source/HEAT/github/source:/root/source/HEAT
+#      # CADtools source code from github
+#       - /home/tom/source/CADtools:/root/source/CADtools
+#      # files dir
+#       - /home/tom/work/CFS/projects/reduced2DCAD:/root/files
+#
+      # === FOR WINDOWS ===
+      # HEAT source code from github
+       - C:\Users\tlooby\github\HEAT\source:/root/source/HEAT
+      # CADtools source code from github
+       - C:\Users\tlooby\github\CADtools:/root/source/CADtools
+      # files directory
+       - C:\Users\tlooby\SPARC\2DreducedCAD:/root/files
+
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    #if you want to set env vars, do it here:
+    environment:
+    - dockerUID=$dockerUID
+    - dockerGID=$dockerGID
+
+
+
+#NOTES:
+#to run HEAT in batch mode, first bind mount the /root/terminal directory to your
+#local directory with the batchFile, then run:
+# python3 launchHEAT.py --m t --f /root/terminal/batchFile.dat
+#
+#to run an interactive shell use this command:
+# docker-compose run HEAT /bin/bash
+#
+# to change image tag name:
+# docker tag plasmapotential/heat:latest plasmapotential/heat:<tag>
