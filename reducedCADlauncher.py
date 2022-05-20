@@ -1,5 +1,5 @@
 import reducedCADClasses as RC
-
+import argparse
 #inputs
 #for use in docker container:
 #HEATpath = '/root/source/HEAT'
@@ -44,9 +44,20 @@ fig = mesh.addMeshPlots2Fig(fig, solutions)
 
 GUI.generateLayout(fig, df)
 
-address = '127.0.0.1' #default
-port = 8050 #default
-GUI.app.run_server(
+if __name__ == '__main__':
+    #parse command line arguments
+    parser = argparse.ArgumentParser(description=""" Use this command to launch crossSections2Mesh """)
+    parser.add_argument('--a', type=str, help='IP address ', required=False)
+    parser.add_argument('--p', type=str, help='port # ', required=False)
+    args = parser.parse_args()
+    address = vars(args)['a']
+    port = vars(args)['p']
+    #use default IPv4 address and port unless user provided one
+    if address == None:
+        address = '127.0.0.1' #default
+    if port == None:
+        port = 8050 #default
+    GUI.app.run_server(
                 debug=True,
                 dev_tools_ui=True,
                 port=port,
