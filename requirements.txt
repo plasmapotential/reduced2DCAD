@@ -3,3 +3,5 @@ plotly
 numpy
 pandas
 shapely
+dash_bootstrap_components
+dash_bootstrap_templates
