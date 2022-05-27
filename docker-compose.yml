@@ -40,6 +40,7 @@ services:
     environment:
     - dockerUID=$dockerUID
     - dockerGID=$dockerGID
+    - runMode=docker
 
 
 

@@ -1,47 +1,38 @@
 import reducedCADClasses as RC
 import argparse
-#inputs
-#for use in docker container:
-HEATpath = '/root/source/HEAT'
-path = '/root/files/'
-STPfile = path + 'VVcompsAdjusted.step'
-STP2D = path + '2Dout.step'
+import os
+import plotly.graph_objects as go
+import pandas as pd
 
-#for use in tom's dev env
-#path = '/home/tom/work/CFS/projects/reducedCAD/'
-#STPfile = path + 'VVcompsAdjusted.step'
-#STP2D = path + '2Dout.step'
-#HEATpath = '/home/tom/source/HEAT/github/source'
 
 rMax = 5000
 zMax = 10000
-phi = 32.0 #degrees
+phi = 150.0 #degrees
 gridSize = 50.0
 
-#Load HEAT environment
-CAD3D = RC.CAD3D(HEATpath)
 
-#Load STP file
-CAD3D.loadSTPfile(STPfile)
+#
 
-#create cross section
-CAD2D = RC.CAD2D(rMax,zMax,phi)
-CAD2D.sectionCAD(CAD3D.CAD)
-CAD2D.buildContourList(CAD3D.CAD)
+#
 
-#create square mesh on top of contours
-mesh = RC.mesh('square' , gridSize)
-polygons, solutions = mesh.createSquareMesh(CAD2D.contourList, gridSize)
-pTableFiles, pTableAll = mesh.shapelyPtables(solutions, path)
-df = mesh.createDFsFromCSVs(pTableAll)[0]
+#
+##create square mesh on top of contours
+#mesh = RC.mesh('square' , gridSize)
+#polygons, solutions = mesh.createSquareMesh(CAD2D.contourList, gridSize)
+#pTableFiles, pTableAll = mesh.shapelyPtables(solutions, path)
+#df = mesh.createDFsFromCSVs(pTableAll)[0]
+#
 
+##contourList plots
+#fig = CAD2D.getContourPlot()
+
+
+
+
+fig = go.Figure()
+df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
 #launch the GUI
 import reducedCADapp as GUI
-#contourList plots
-fig = CAD2D.getContourPlot()
-#mesh overlay
-fig = mesh.addMeshPlots2Fig(fig, solutions)
-
 GUI.generateLayout(fig, df)
 
 if __name__ == '__main__':
