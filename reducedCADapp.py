@@ -1,6 +1,6 @@
 #reducedCADapp.py
 
-
+import os
 from dash import Dash, dcc, html, dash_table
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
@@ -25,6 +25,8 @@ try:
     runMode = os.environ['runMode']
 except:
     runMode = 'dev'
+
+print("Running in environment: "+runMode)
 
 #inputs
 if runMode == 'docker':

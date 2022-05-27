@@ -30,7 +30,7 @@ services:
       # HEAT source code from github
        - C:\Users\tlooby\github\HEAT\source:/root/source/HEAT
       # CADtools source code from github
-       - C:\Users\tlooby\github\CADtools:/root/source/CADtools
+       - C:\Users\tlooby\github\reduced2DCAD:/root/source/reduced2DCAD
       # files directory
        - C:\Users\tlooby\SPARC\2DreducedCAD:/root/files
 
