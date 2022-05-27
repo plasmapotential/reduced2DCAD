@@ -1,4 +1,7 @@
 #reducedCADapp.py
+#Description:   Dash python bindings to HTML5/JS/CSS for reduced 2D app
+#Engineer:      T Looby
+#Date:          20220519
 
 import os
 from dash import Dash, dcc, html, dash_table
@@ -15,10 +18,6 @@ import reducedCADClasses as RC
 CAD3D = RC.CAD3D()
 CAD2D = RC.CAD2D()
 meshes = []
-
-#default figure and table
-#fig = go.Figure()
-#df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
 
 #environment variables for tom's development
 try:
@@ -42,8 +41,6 @@ else:
     #STPfile = path + 'VVcompsAdjusted.step'
     STP2D = path + '2Dout.step'
     HEAT = '/home/tom/source/HEAT/github/source'
-
-
 
 #DASH server
 app = Dash(__name__, external_stylesheets=[dbc.themes.MATERIA])
@@ -363,9 +360,6 @@ def loadGrid(n_clicks, gridSize, meshTraces):
         #mesh overlay
         traces = mesh.getMeshTraces(meshTraces)
     return [html.Label("Loaded Mesh"), traces]
-
-
-
 
 #Update the graph
 @app.callback([Output('polyGraph', 'figure')],

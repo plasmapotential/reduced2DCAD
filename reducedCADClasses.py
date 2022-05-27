@@ -1,7 +1,8 @@
-#reducedCAD.py
+#reducedCADClasses.py
 #Description:
 #Engineer:      T Looby
 #Date:          20220519
+
 from dash import Dash, dcc, html, dash_table
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
@@ -13,8 +14,6 @@ import plotly.graph_objects as go
 import os
 import sys
 import argparse
-
-
 
 class CAD3D:
 

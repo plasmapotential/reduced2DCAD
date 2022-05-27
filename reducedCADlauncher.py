@@ -1,32 +1,20 @@
+#reducedCADlauncher.py
+#Description:   launcher for the 2D reduced model app
+#Engineer:      T Looby
+#Date:          20220519
+
 import reducedCADClasses as RC
 import argparse
 import os
 import plotly.graph_objects as go
 import pandas as pd
 
-
-rMax = 5000
-zMax = 10000
-phi = 150.0 #degrees
-gridSize = 50.0
-
-
-#
-
-#
-
-#
+#legacy code left for tom's reference:
 ##create square mesh on top of contours
 #mesh = RC.mesh('square' , gridSize)
 #polygons, solutions = mesh.createSquareMesh(CAD2D.contourList, gridSize)
 #pTableFiles, pTableAll = mesh.shapelyPtables(solutions, path)
 #df = mesh.createDFsFromCSVs(pTableAll)[0]
-#
-
-##contourList plots
-#fig = CAD2D.getContourPlot()
-
-
 
 
 fig = go.Figure()
