@@ -9,14 +9,6 @@ import os
 import plotly.graph_objects as go
 import pandas as pd
 
-#legacy code left for tom's reference:
-##create square mesh on top of contours
-#mesh = RC.mesh('square' , gridSize)
-#polygons, solutions = mesh.createSquareMesh(CAD2D.contourList, gridSize)
-#pTableFiles, pTableAll = mesh.shapelyPtables(solutions, path)
-#df = mesh.createDFsFromCSVs(pTableAll)[0]
-
-
 fig = go.Figure()
 df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
 #launch the GUI

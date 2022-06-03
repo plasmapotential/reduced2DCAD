@@ -303,7 +303,6 @@ class mesh:
         count = 0
         pTable = np.zeros((len(solutions), 7))
         for j,geom in enumerate(solutions):
-            print(geom.centroid)
             #Rc
             pTable[j,0] = np.array(geom.centroid)[0] *1e-3 #to meters
             #Zc
@@ -317,7 +316,7 @@ class mesh:
             #AC2
             pTable[j,5] = 0.0
             #GroupID
-            pTable[j,6] = None
+            pTable[j,6] = 0
 
         #save pTableAll
         pTableOut = pTablePath + 'pTableAll.csv'
@@ -337,8 +336,8 @@ class mesh:
             fileList = [fileList]
         dfs = []
         for f in fileList:
-            df = pd.read_csv(f)
-            df.columns = df.columns.str.strip()
+            df = pd.read_csv(f, skiprows=1)
+            df.columns = ['Rc[m]', 'Zc[m]', 'L[m]', 'W[m]', 'AC1[deg]', 'AC2[deg]', 'GroupID']
             dfs.append(df)
         return dfs
 

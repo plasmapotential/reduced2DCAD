@@ -363,6 +363,9 @@ def meshCreateDiv():
                State('phi','value'),]
                )
 def loadGrid(n_clicks, gridSize, meshTraces, meshToggles, meshToggleVals, phi):
+    """
+    creates a grid and updates meshData storage object and toggles
+    """
     if n_clicks is None:
         raise PreventUpdate
     else:
@@ -455,7 +458,9 @@ def meshDisplayDiv():
                )
 def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, idData, outPath):
     """
-    add to main button callbacks
+    add to main mesh callbacks
+
+    results in additions to the pTables and figures
     """
     global meshes
     global solutions
@@ -540,8 +545,19 @@ def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, id
                Input('mainToggle', 'value')],
                )
 def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle):
-    #if contourTraces == None and meshTraces == None:
-    #    raise PreventUpdate
+    """
+    updates the figure.  the figure contains a single list of all the traces,
+    and we need to know if these traces are contours, meshes, or main mesh.
+    to do this we use idData dict.
+
+    idData contains a 'start' index for each of those groups (contours, meshes,
+    main meshes), and the indices within those groups can be mapped back to
+    the figure indices via these 'start' values
+
+    idData also contains an 'Idxs' key:value pair, where the value is a list
+    of all of the figure indexes that correspond to this group (contours, meshes,
+    main meshes)
+    """
     idData = {}
     idx1 = 0
     fig = go.Figure()
