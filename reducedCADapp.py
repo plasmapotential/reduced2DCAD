@@ -12,12 +12,17 @@ from dash_bootstrap_templates import load_figure_template
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import pandas as pd
 
 #load HEAT CADclass interface objects
 import reducedCADClasses as RC
 CAD3D = RC.CAD3D()
 CAD2D = RC.CAD2D()
+
+#globals
 meshes = []
+solutions = []
+gridSizes = []
 
 #environment variables for tom's development
 try:
@@ -195,55 +200,55 @@ def generateLayout(fig, df):
         )
 
 
-@app.callback(
-    [Output('meshColorTraces', 'data'),
-     Output('table', 'data'),
-     Output('colorData', 'data')],
-    Input('assignID', 'n_clicks'),
-    [State('polyGraph', 'selectedData'),
-     State('table', 'data'),
-     State('grp', 'value'),
-     State('colorData', 'data'),
-     State('polyGraph', 'figure')]
-    )
-def color_selected_data(n_clicks, selectedData, tableData, group, colorData, fig):
-    """
-    colors selected mesh cells based upon group ID
-    """
-    if n_clicks == None:
-        raise PreventUpdate
-    #selected data is None on page load, dont fire callback
-    if selectedData is not None:
-        #user must input a group ID
-        if group == None:
-            print("You must enter a value for group!")
-            raise PreventUpdate
-        #get mesh elements in selection
-        ids = []
-        for i,pt in enumerate(selectedData['points']):
-            ids.append(pt['curveNumber'])
-        #initialize colorData dictionary
-        if colorData is None:
-            colorData = {}
-        #loop thru IDs of selected, assigning color by group
-        ids = np.array(np.unique(ids))
-        for ID in ids:
-            dataDict = fig['data'][ID]
-            if ('line' in dataDict) or ('color' in dataDict):
-                fig['data'][ID]['line']['color'] = '#9834eb'
-                if group == None:
-                    group = 0
-                #also update the table
-                try:
-                    tableData[ID]['GroupID'] = group
-                except: #contour traces will not have tableData
-                    print("Group ID "+str(ID)+" not found in table!")
-                if group in colorData:
-                    fig['data'][ID]['line']['color'] = colorData[group]
-                else:
-                    colorData[group] = px.colors.qualitative.Plotly[len(colorData)]
-                    fig['data'][ID]['line']['color'] = colorData[group]
-    return fig, tableData, colorData
+#@app.callback(
+#    [Output('meshColorTraces', 'data'),
+#     Output('table', 'data'),
+#     Output('colorData', 'data')],
+#    Input('assignID', 'n_clicks'),
+#    [State('polyGraph', 'selectedData'),
+#     State('table', 'data'),
+#     State('grp', 'value'),
+#     State('colorData', 'data'),
+#     State('polyGraph', 'figure')]
+#    )
+#def color_selected_data(n_clicks, selectedData, tableData, group, colorData, fig):
+#    """
+#    colors selected mesh cells based upon group ID
+#    """
+#    if n_clicks == None:
+#        raise PreventUpdate
+#    #selected data is None on page load, dont fire callback
+#    if selectedData is not None:
+#        #user must input a group ID
+#        if group == None:
+#            print("You must enter a value for group!")
+#            raise PreventUpdate
+#        #get mesh elements in selection
+#        ids = []
+#        for i,pt in enumerate(selectedData['points']):
+#            ids.append(pt['curveNumber'])
+#        #initialize colorData dictionary
+#        if colorData is None:
+#            colorData = {}
+#        #loop thru IDs of selected, assigning color by group
+#        ids = np.array(np.unique(ids))
+#        for ID in ids:
+#            dataDict = fig['data'][ID]
+#            if ('line' in dataDict) or ('color' in dataDict):
+#                fig['data'][ID]['line']['color'] = '#9834eb'
+#                if group == None:
+#                    group = 0
+#                #also update the table
+#                try:
+#                    tableData[ID]['GroupID'] = group
+#                except: #contour traces will not have tableData
+#                    print("Group ID "+str(ID)+" not found in table!")
+#                if group in colorData:
+#                    fig['data'][ID]['line']['color'] = colorData[group]
+#                else:
+#                    colorData[group] = px.colors.qualitative.Plotly[len(colorData)]
+#                    fig['data'][ID]['line']['color'] = colorData[group]
+#    return fig, tableData, colorData
 
 
 
@@ -385,10 +390,10 @@ def loadGrid(n_clicks, gridSize, meshTraces, meshToggles, meshToggleVals, phi):
             options = []
             toggleVals = meshToggleVals
             for i,mesh in enumerate(meshes):
-                name = mesh.meshType + " {:0.1f}m at {:0.1f}\u00B0 ".format(mesh.grid_size, mesh.phi)
+                name = mesh.meshType + " {:0.1f}mm at {:0.1f}\u00B0 ".format(mesh.grid_size, mesh.phi)
                 options.append({'label': name, 'value': i})
 
-                #append the last index
+            #append the last index
             if i not in meshToggleVals:
                 toggleVals.append(i)
 
@@ -438,25 +443,46 @@ def meshDisplayDiv():
 #main mesh
 @app.callback([Output('mainTraces', 'data'),
                Output('mainToggle', 'options'),
-               Output('mainToggle', 'value')],
+               Output('mainToggle', 'value'),
+               Output('table', 'data')],
               [Input('addAll', 'n_clicks'),
                Input('addSelect', 'n_clicks')],
               [State('meshTraces', 'data'),
                State('mainTraces', 'data'),
                State('polyGraph', 'selectedData'),
-               State('idData', 'data')],
+               State('idData', 'data'),
+               State('outPath', 'value')],
                )
-def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, idData):
+def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, idData, outPath):
     """
     add to main button callbacks
     """
-    button_id = ctx.triggered_id
+    global meshes
+    global solutions
+    global gridSizes
 
+    button_id = ctx.triggered_id
+    df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
     if button_id == None:
         raise PreventUpdate
     elif button_id == 'addAll':
-        #mainTraces = meshTraces
         mainTraces =  [m for sub in meshTraces for m in sub]
+        solutions = []
+        gridSizes = []
+        for m in meshes:
+            for s in m.solutions:
+                for g in s.geoms:
+                    solutions.append(g)
+                    gridSizes.append(m.grid_size)
+        #get pTable
+        pTableOut = meshes[0].shapelyPtables(solutions,
+                                             outPath,
+                                             gridSizes,
+                                             mainOnly=True,
+                                             )
+        #create pandas df
+        df = meshes[0].createDFsFromCSVs(pTableOut)[0]
+
     elif button_id == 'addSelect':
         if selected is not None:
             if mainTraces == None:
@@ -472,7 +498,7 @@ def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, id
             if 'meshIdxs' not in list(idData.keys()):
                 print("No meshes displayed.  Doing nothing")
             else:
-
+                #loop thru IDs in selection
                 for id in np.unique(ids):
                     #loop thru all meshes
                     for idx,m in enumerate(meshTraces):
@@ -480,21 +506,28 @@ def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, id
                         mappedID = id - idData['meshStarts'][idx]
                         #if this trace is in the mesh
                         if id in idData['meshIdxs'][idx]:
+                            solutions.append(meshes[idx].geoms[mappedID])
+                            gridSizes.append(meshes[idx].grid_size)
+
                             if 'mainIdxs' not in list(idData.keys()):
                                 mainTraces.append(m[mappedID])
                             else:
                                 if id not in idData['mainIdxs']:
                                     mainTraces.append(m[mappedID])
 
+                #get pTable
+                pTableOut = meshes[0].shapelyPtables(solutions,
+                                                     outPath,
+                                                     gridSizes,
+                                                     mainOnly=True,
+                                                     )
+                #create pandas df
+                df = meshes[0].createDFsFromCSVs(pTableOut)[0]
+
     options = [{'label':'Main Mesh', 'value':0}]
     value = [0]
 
-    return [mainTraces, options, value]
-
-
-
-
-
+    return [mainTraces, options, value, df.to_dict('records')]
 
 
 #Update the graph
@@ -552,8 +585,6 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle):
                 idx2 += 1
             idx1 = idx1 + idx2
         idData['mainIdxs'] = idxs
-
-        print(idData['mainIdxs'])
 
     fig.update_layout(showlegend=False)
     fig.update_yaxes(scaleanchor = "x",scaleratio = 1,)

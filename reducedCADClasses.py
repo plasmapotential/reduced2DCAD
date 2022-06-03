@@ -233,6 +233,11 @@ class mesh:
                     solutions.append(solution)
         self.polygons = polygons
         self.solutions = solutions
+        geoms = []
+        for s in self.solutions:
+            for g in s.geoms:
+                geoms.append(g)
+        self.geoms = geoms
         return
 
     def findEdgesAndHoles(self, contours):
@@ -286,51 +291,43 @@ class mesh:
         return cDicts
 
 
-    def shapelyPtables(self, solutions, pTablePath):
+    def shapelyPtables(self, solutions, pTablePath, gridSizes,
+                             mainOnly = False,):
         """
         creates a parallelogram table for input to EFIT/TOKSYS
 
-        solutions are shapely solution objects
+        solutions are shapely solution objects (list)
+        gridSizes are mesh grid sizes for each set of solutions (list)
         pTablePath is path where we save pTables
         """
-        pTableFiles = []
         count = 0
-        for i,sol in enumerate(solutions):
-            #now create parallelogram table
-            pTable = np.zeros((len(sol.geoms), 7))
-            for j,geom in enumerate(sol.geoms):
-                #Rc
-                pTable[j,0] = np.array(geom.centroid)[0] *1e-3 #to meters
-                #Zc
-                pTable[j,1] = np.array(geom.centroid)[1] *1e-3 #to meters
-                #L
-                pTable[j,2] = self.grid_size *1e-3 #to meters
-                #w
-                pTable[j,3] = self.grid_size *1e-3 #to meters
-                #AC1
-                pTable[j,4] = 0.0
-                #AC2
-                pTable[j,5] = 0.0
-            if i==0:
-                pTableAll = pTable
-            else:
-                pTableAll = np.append(pTableAll, pTable, axis=0)
+        pTable = np.zeros((len(solutions), 7))
+        for j,geom in enumerate(solutions):
+            print(geom.centroid)
+            #Rc
+            pTable[j,0] = np.array(geom.centroid)[0] *1e-3 #to meters
+            #Zc
+            pTable[j,1] = np.array(geom.centroid)[1] *1e-3 #to meters
+            #L
+            pTable[j,2] = gridSizes[j] *1e-3 #to meters
+            #w
+            pTable[j,3] = gridSizes[j] *1e-3 #to meters
+            #AC1
+            pTable[j,4] = 0.0
+            #AC2
+            pTable[j,5] = 0.0
+            #GroupID
+            pTable[j,6] = None
 
-            #save parallelogram tables
-            pTableOut = pTablePath + 'pTable{:03d}.csv'.format(i)
-            print("Saving Parallelogram Table...")
-            head = 'Rc[m], Zc[m], L[m], W[m], AC1[deg], AC2[deg], GroupID'
-            np.savetxt(pTableOut, pTable, delimiter=',',fmt='%.10f', header=head)
-            pTableFiles.append(pTableOut)
         #save pTableAll
         pTableOut = pTablePath + 'pTableAll.csv'
         print("Saving Parallelogram Table...")
         head = 'Rc[m], Zc[m], L[m], W[m], AC1[deg], AC2[deg], GroupID'
         try:
-            np.savetxt(pTableOut, pTableAll, delimiter=',',fmt='%.10f', header=head)
+            np.savetxt(pTableOut, pTable, delimiter=',',fmt='%.10f', header=head)
         except:
-            print("couldn't save pTable.  are you sure there is a CAD part at this phi?")
-        return pTableFiles, pTableOut
+            print("couldn't save pTable")
+        return pTableOut
 
     def createDFsFromCSVs(self, fileList):
         """
