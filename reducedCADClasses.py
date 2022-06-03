@@ -174,9 +174,10 @@ class mesh:
     def __init__(self):
         return
 
-    def loadMeshParams(self, meshType, gridSize):
+    def loadMeshParams(self, meshType, gridSize, phi):
         self.meshType = meshType
         self.grid_size = gridSize
+        self.phi = phi
         return
 
     def square(self, x, y, s):

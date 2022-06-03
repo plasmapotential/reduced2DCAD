@@ -4,7 +4,7 @@
 #Date:          20220519
 
 import os
-from dash import Dash, dcc, html, dash_table
+from dash import Dash, dcc, html, dash_table, ctx
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
@@ -106,7 +106,9 @@ def generateLayout(fig, df):
         dcc.Store(id='colorData', storage_type='memory'),
         dcc.Store(id='contourTraces', storage_type='memory'),
         dcc.Store(id='meshTraces', storage_type='memory'),
+        dcc.Store(id='mainTraces', storage_type='memory'),
         dcc.Store(id='meshColorTraces', storage_type='memory'),
+        dcc.Store(id='idData', storage_type='memory'),
 
         #graph Div
         html.Div([
@@ -144,9 +146,15 @@ def generateLayout(fig, df):
                     ),
                     dbc.AccordionItem(
                         [
-                            meshDiv()
+                            meshCreateDiv()
                         ],
-                    title="Mesh",
+                    title="Create Mesh",
+                    ),
+                    dbc.AccordionItem(
+                        [
+                            meshDisplayDiv()
+                        ],
+                    title="Mesh Display",
                     ),
                     dbc.AccordionItem(
                         [
@@ -317,21 +325,21 @@ def loadSection(n_clicks, rMax, zMax, phi, fig):
     return [html.Label("Sectioned CAD"), traces]
 
 
-def meshDiv():
+def meshCreateDiv():
     """
-    mesh div object
+    create mesh div object
     """
     div = html.Div([
                 html.H6("Create New Mesh"),
                 html.Label("Grid Size [mm]:", style={'margin':'0 10px 0 10px'}),
                 dcc.Input(id="gridSize"),
                 dbc.Button("Create Grid", color="primary", id="loadGrid"),
+                html.Div(id="hiddenDivMesh"),
                 html.Hr(),
                 html.H6("Mesh Operations:"),
                 html.Label("Group ID:", style={'margin':'0 10px 0 10px'}),
                 dcc.Input(id="grp"),
                 dbc.Button("Assign ID to selection", color="primary", id="assignID"),
-                html.Div(id="hiddenDivMesh"),
                 ],
             style=styles['column']
             )
@@ -339,45 +347,214 @@ def meshDiv():
 
 #create grid button connect
 @app.callback([Output('hiddenDivMesh', 'children'),
-               Output('meshTraces', 'data')],
+               Output('meshTraces', 'data'),
+               Output('meshToggles', 'options'),
+               Output('meshToggles', 'value')],
               [Input('loadGrid', 'n_clicks')],
               [State('gridSize', 'value'),
-               State('meshTraces', 'data')]
+               State('meshTraces', 'data'),
+               State('meshToggles', 'options'),
+               State('meshToggles', 'value'),
+               State('phi','value'),]
                )
-def loadGrid(n_clicks, gridSize, meshTraces):
+def loadGrid(n_clicks, gridSize, meshTraces, meshToggles, meshToggleVals, phi):
     if n_clicks is None:
         raise PreventUpdate
     else:
         type = 'square'
         name = type + '{:.3f}'.format(float(gridSize))
         #check if this mesh is already in the meshList
-        if np.any([m.grid_size==gridSize for m in meshes]) != True:
+        test1 = [m.meshType==type for m in meshes]
+        test2 = [m.grid_size==float(gridSize) for m in meshes]
+        test3 = [m.phi==float(phi) for m in meshes]
+        test = np.logical_and(np.logical_and(test1, test2), test3)
+
+        if np.any(test) == False:
             mesh = RC.mesh()
-            mesh.loadMeshParams(type, float(gridSize))
+            mesh.loadMeshParams(type, float(gridSize), float(phi))
             mesh.createSquareMesh(CAD2D.contourList, gridSize)
             meshes.append(mesh)
 
-        #mesh overlay
-        traces = mesh.getMeshTraces(meshTraces)
-    return [html.Label("Loaded Mesh"), traces]
+            #mesh overlay
+            #traces = mesh.getMeshTraces(meshTraces)
+            if meshTraces == None:
+                meshTraces = []
+            meshTraces.append(mesh.getMeshTraces())
+
+            #mesh checkboxes
+            options = []
+            toggleVals = meshToggleVals
+            for i,mesh in enumerate(meshes):
+                name = mesh.meshType + " {:0.1f}m at {:0.1f}\u00B0 ".format(mesh.grid_size, mesh.phi)
+                options.append({'label': name, 'value': i})
+
+                #append the last index
+            if i not in meshToggleVals:
+                toggleVals.append(i)
+
+
+
+            status = html.Label("Loaded Mesh")
+        else:
+            traces = meshTraces
+            options = meshToggles
+            toggleVals = meshToggleVals
+            status = html.Label("Mesh Already Loaded")
+
+    return [status, meshTraces, options, toggleVals]
+
+
+def meshDisplayDiv():
+    """
+    mesh display options div object
+    """
+    div = html.Div([
+                html.H6("Available Meshes: "),
+                dbc.Checklist(
+                    options=[
+
+                        ],
+                        value=[None],
+                        id='meshToggles',
+                        switch=True,
+                        ),
+                html.Br(),
+                dbc.Button("Add all to main mesh", color="primary", id="addAll"),
+                dbc.Button("Add selection to main mesh", color="primary", id="addSelect"),
+                html.Br(),
+                html.H6("Main Mesh: "),
+                dbc.Checklist(
+                    options=[],
+                        value=[None],
+                        id='mainToggle',
+                        switch=True,
+                        ),
+                ],
+            style=styles['column']
+            )
+    return div
+
+
+#main mesh
+@app.callback([Output('mainTraces', 'data'),
+               Output('mainToggle', 'options'),
+               Output('mainToggle', 'value')],
+              [Input('addAll', 'n_clicks'),
+               Input('addSelect', 'n_clicks')],
+              [State('meshTraces', 'data'),
+               State('mainTraces', 'data'),
+               State('polyGraph', 'selectedData'),
+               State('idData', 'data')],
+               )
+def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, idData):
+    """
+    add to main button callbacks
+    """
+    button_id = ctx.triggered_id
+
+    if button_id == None:
+        raise PreventUpdate
+    elif button_id == 'addAll':
+        #mainTraces = meshTraces
+        mainTraces =  [m for sub in meshTraces for m in sub]
+    elif button_id == 'addSelect':
+        if selected is not None:
+            if mainTraces == None:
+                mainTraces = []
+            #get mesh elements in selection
+            ids = []
+            for i,pt in enumerate(selected['points']):
+                id = int(pt['curveNumber'])
+                ids.append(id)
+
+            #add mesh elements in selection to main mesh if they are mesh elements
+            #and aren't already in the main mesh
+            if 'meshIdxs' not in list(idData.keys()):
+                print("No meshes displayed.  Doing nothing")
+            else:
+
+                for id in np.unique(ids):
+                    #loop thru all meshes
+                    for idx,m in enumerate(meshTraces):
+                        #map this mesh trace elements back to figure trace elements
+                        mappedID = id - idData['meshStarts'][idx]
+                        #if this trace is in the mesh
+                        if id in idData['meshIdxs'][idx]:
+                            if 'mainIdxs' not in list(idData.keys()):
+                                mainTraces.append(m[mappedID])
+                            else:
+                                if id not in idData['mainIdxs']:
+                                    mainTraces.append(m[mappedID])
+
+    options = [{'label':'Main Mesh', 'value':0}]
+    value = [0]
+
+    return [mainTraces, options, value]
+
+
+
+
+
+
 
 #Update the graph
-@app.callback([Output('polyGraph', 'figure')],
+@app.callback([Output('polyGraph', 'figure'),
+               Output('idData', 'data')],
               [Input('contourTraces', 'data'),
-               Input('meshTraces', 'data')],
+               Input('meshTraces', 'data'),
+               Input('meshToggles','value'),
+               Input('mainTraces', 'data'),
+               Input('mainToggle', 'value')],
                )
-def updateGraph(contourTraces, meshTraces):
+def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle):
     #if contourTraces == None and meshTraces == None:
     #    raise PreventUpdate
-
+    idData = {}
+    idx1 = 0
     fig = go.Figure()
     if contourTraces != None:
-        for trace in contourTraces:
+        idxs = []
+        idx2 = 0
+        idData['contourStart'] = idx1
+        for i,trace in enumerate(contourTraces):
             fig.add_trace(trace)
+            idxs.append(idx1+idx2)
+            idx2 += 1
+        idx1 = idx1 + idx2
+        idData['contourIdxs'] = idxs
+
     if meshTraces != None:
-        for trace in meshTraces:
-            fig.add_trace(trace)
+
+        idData['meshIdxs'] = []
+        #trace index where each independent mesh starts
+        idData['meshStarts'] = []
+        for i,mesh in enumerate(meshTraces):
+            idxs = []
+            idData['meshStarts'].append(idx1)
+            if i in toggleVals:
+                idx2 = 0
+                for j,trace in enumerate(mesh):
+                    fig.add_trace(trace)
+                    idxs.append(idx1+idx2)
+                    idx2 += 1
+                idx1 = idx1 + idx2
+            idData['meshIdxs'].append(idxs)
+
+    if mainTraces != None:
+        idxs = []
+        idData['mainStart'] = idx1
+        for i,trace in enumerate(mainTraces):
+            idx2 = 0
+            if 0 in mainToggle:
+                trace['line']['color'] = '#a122f5'
+                fig.add_trace(trace)
+                idxs.append(idx1+idx2)
+                idx2 += 1
+            idx1 = idx1 + idx2
+        idData['mainIdxs'] = idxs
+
+        print(idData['mainIdxs'])
 
     fig.update_layout(showlegend=False)
     fig.update_yaxes(scaleanchor = "x",scaleratio = 1,)
-    return [fig]
+    return [fig, idData]
