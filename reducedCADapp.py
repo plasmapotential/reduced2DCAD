@@ -21,8 +21,10 @@ CAD2D = RC.CAD2D()
 
 #globals
 meshes = []
+centroids = []
 solutions = []
 gridSizes = []
+mainMap = []
 
 #environment variables for tom's development
 try:
@@ -163,6 +165,12 @@ def generateLayout(fig, df):
                     ),
                     dbc.AccordionItem(
                         [
+                            mainOpsDiv()
+                        ],
+                    title="Main Mesh Operations",
+                    ),
+                    dbc.AccordionItem(
+                        [
                                 dash_table.DataTable(
                                     id='table',
                                     columns=[{"name": i, "id": i}
@@ -178,6 +186,7 @@ def generateLayout(fig, df):
                     ),
                     ],
                     style=styles['table'],
+                    active_item="CAD",
                     ),
 
             ],
@@ -198,59 +207,6 @@ def generateLayout(fig, df):
             ),
         ],
         )
-
-
-#@app.callback(
-#    [Output('meshColorTraces', 'data'),
-#     Output('table', 'data'),
-#     Output('colorData', 'data')],
-#    Input('assignID', 'n_clicks'),
-#    [State('polyGraph', 'selectedData'),
-#     State('table', 'data'),
-#     State('grp', 'value'),
-#     State('colorData', 'data'),
-#     State('polyGraph', 'figure')]
-#    )
-#def color_selected_data(n_clicks, selectedData, tableData, group, colorData, fig):
-#    """
-#    colors selected mesh cells based upon group ID
-#    """
-#    if n_clicks == None:
-#        raise PreventUpdate
-#    #selected data is None on page load, dont fire callback
-#    if selectedData is not None:
-#        #user must input a group ID
-#        if group == None:
-#            print("You must enter a value for group!")
-#            raise PreventUpdate
-#        #get mesh elements in selection
-#        ids = []
-#        for i,pt in enumerate(selectedData['points']):
-#            ids.append(pt['curveNumber'])
-#        #initialize colorData dictionary
-#        if colorData is None:
-#            colorData = {}
-#        #loop thru IDs of selected, assigning color by group
-#        ids = np.array(np.unique(ids))
-#        for ID in ids:
-#            dataDict = fig['data'][ID]
-#            if ('line' in dataDict) or ('color' in dataDict):
-#                fig['data'][ID]['line']['color'] = '#9834eb'
-#                if group == None:
-#                    group = 0
-#                #also update the table
-#                try:
-#                    tableData[ID]['GroupID'] = group
-#                except: #contour traces will not have tableData
-#                    print("Group ID "+str(ID)+" not found in table!")
-#                if group in colorData:
-#                    fig['data'][ID]['line']['color'] = colorData[group]
-#                else:
-#                    colorData[group] = px.colors.qualitative.Plotly[len(colorData)]
-#                    fig['data'][ID]['line']['color'] = colorData[group]
-#    return fig, tableData, colorData
-
-
 
 def CADdiv():
     """
@@ -341,10 +297,6 @@ def meshCreateDiv():
                 dbc.Button("Create Grid", color="primary", id="loadGrid"),
                 html.Div(id="hiddenDivMesh"),
                 html.Hr(),
-                html.H6("Mesh Operations:"),
-                html.Label("Group ID:", style={'margin':'0 10px 0 10px'}),
-                dcc.Input(id="grp"),
-                dbc.Button("Assign ID to selection", color="primary", id="assignID"),
                 ],
             style=styles['column']
             )
@@ -428,6 +380,7 @@ def meshDisplayDiv():
                         ),
                 html.Br(),
                 dbc.Button("Add all to main mesh", color="primary", id="addAll"),
+                html.Hr(),
                 dbc.Button("Add selection to main mesh", color="primary", id="addSelect"),
                 html.Br(),
                 html.H6("Main Mesh: "),
@@ -447,26 +400,38 @@ def meshDisplayDiv():
 @app.callback([Output('mainTraces', 'data'),
                Output('mainToggle', 'options'),
                Output('mainToggle', 'value'),
-               Output('table', 'data')],
+               Output('table', 'data'),
+               Output('colorData', 'data')],
               [Input('addAll', 'n_clicks'),
-               Input('addSelect', 'n_clicks')],
+               Input('addSelect', 'n_clicks'),
+               Input('assignID', 'n_clicks'),
+               Input('combine', 'n_clicks')],
               [State('meshTraces', 'data'),
                State('mainTraces', 'data'),
                State('polyGraph', 'selectedData'),
                State('idData', 'data'),
-               State('outPath', 'value')],
+               State('outPath', 'value'),
+               State('grp', 'value'),
+               State('colorData', 'data'),
+               State('table', 'data')
+               ],
                )
-def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, idData, outPath):
+def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine,
+             meshTraces, mainTraces, selected,
+             idData, outPath, group, colorData, tableData):
     """
     add to main mesh callbacks
 
     results in additions to the pTables and figures
     """
     global meshes
+    global centroids
     global solutions
     global gridSizes
+    global mainMap
 
     button_id = ctx.triggered_id
+
     df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
     if button_id == None:
         raise PreventUpdate
@@ -474,19 +439,22 @@ def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, id
         mainTraces =  [m for sub in meshTraces for m in sub]
         solutions = []
         gridSizes = []
+        centroids = []
         for m in meshes:
             for s in m.solutions:
                 for g in s.geoms:
                     solutions.append(g)
+                    centroids.append(np.array(g.centroid))
                     gridSizes.append(m.grid_size)
         #get pTable
-        pTableOut = meshes[0].shapelyPtables(solutions,
+        pTableOut = meshes[0].shapelyPtables(centroids,
                                              outPath,
                                              gridSizes,
                                              mainOnly=True,
                                              )
         #create pandas df
         df = meshes[0].createDFsFromCSVs(pTableOut)[0]
+        tableData = df.to_dict('records')
 
     elif button_id == 'addSelect':
         if selected is not None:
@@ -511,29 +479,129 @@ def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, id
                         mappedID = id - idData['meshStarts'][idx]
                         #if this trace is in the mesh
                         if id in idData['meshIdxs'][idx]:
-                            solutions.append(meshes[idx].geoms[mappedID])
-                            gridSizes.append(meshes[idx].grid_size)
-
                             if 'mainIdxs' not in list(idData.keys()):
+                                mainMap.append(id)
                                 mainTraces.append(m[mappedID])
+                                solutions.append(meshes[idx].geoms[mappedID])
+                                centroids.append(np.array(meshes[idx].geoms[mappedID].centroid))
+                                gridSizes.append(meshes[idx].grid_size)
                             else:
-                                if id not in idData['mainIdxs']:
+                                if id not in mainMap:
+                                    mainMap.append(id)
                                     mainTraces.append(m[mappedID])
+                                    solutions.append(meshes[idx].geoms[mappedID])
+                                    centroids.append(np.array(meshes[idx].geoms[mappedID].centroid))
+                                    gridSizes.append(meshes[idx].grid_size)
 
                 #get pTable
-                pTableOut = meshes[0].shapelyPtables(solutions,
+                pTableOut = meshes[0].shapelyPtables(centroids,
                                                      outPath,
                                                      gridSizes,
-                                                     mainOnly=True,
+                                                     tableData,
                                                      )
                 #create pandas df
                 df = meshes[0].createDFsFromCSVs(pTableOut)[0]
+                tableData = df.to_dict('records')
+
+    #assign group ID to main mesh elements
+    elif button_id == 'assignID':
+        if n_clicks_assign == None:
+            raise PreventUpdate
+        #selected data is None on page load, dont fire callback
+        if selected is not None:
+            #user must input a group ID
+            if group == None:
+                print("You must enter a value for group!")
+                raise PreventUpdate
+            #get mesh elements in selection
+            ids = []
+            for i,pt in enumerate(selected['points']):
+                ids.append(pt['curveNumber'])
+            #initialize colorData dictionary
+            if colorData is None:
+                colorData = {}
+            #loop thru IDs of selected, assigning color by group
+            ids = np.array(np.unique(ids))
+            for ID in ids:
+                if ID in idData['mainIdxs']:
+                    idx = idData['mainIdxs'].index(ID)
+                    if group == None:
+                        group = 0
+                    #also update the table
+                    try:
+                        tableData[idx]['GroupID'] = group
+                    except: #contour traces will not have tableData
+                        print("Group ID "+str(idx)+" not found in table!")
+                    if group not in colorData:
+                        colorData[group] = px.colors.qualitative.Plotly[len(colorData)]
+
+    elif button_id == 'combine':
+        if n_clicks_combine == None:
+            raise PreventUpdate
+        if selected is not None:
+            #get mesh elements in selection
+            ids = []
+            for i,pt in enumerate(selected['points']):
+                ids.append(pt['curveNumber'])
+            #loop thru IDs of selected, assigning color by group
+            ids = np.array(np.unique(ids))
+            idxs = []
+
+            #remove mesh elements we are combining
+            #reverse so we dont mess up the list index as we go
+            for ID in sorted(ids, reverse=True):
+                if ID in idData['mainIdxs']:
+                    idx = idData['mainIdxs'].index(ID)
+                    idxs.append(idx)
+                    solutions.pop(idx)
+                    centroids.pop(idx)
+                    gridSizes.pop(idx)
+                    mainTraces.pop(idx)
+
+            #combine elements into single element
+            idxs = np.array(sorted(idxs))
+            grid, trace, tData, ctrs = meshes[0].combineElements(np.array(tableData)[idxs])
+            solutions.append(None)
+            centroids.append(ctrs)
+            gridSizes.append(grid)
+            mainTraces.append(trace)
+
+            #remove elements that were combined from pTable
+            for ID in sorted(ids, reverse=True):
+                if ID in idData['mainIdxs']:
+                    idx = idData['mainIdxs'].index(ID)
+                    tableData.pop(idx)
+            tableData.append(tData)
 
     options = [{'label':'Main Mesh', 'value':0}]
     value = [0]
 
-    return [mainTraces, options, value, df.to_dict('records')]
+    #initialize colorData dictionary
+    if colorData is None:
+        #default color
+        colorData = {'default':'#d059ff'}
 
+    return [mainTraces, options, value, tableData, colorData]
+
+
+
+def mainOpsDiv():
+    """
+    div for operations on main mesh
+    """
+    div = html.Div([
+            dbc.Button("Combine selected elements", color="primary", id="combine"),
+            html.Div(id="hiddenDivMainOps"),
+            html.Hr(),
+            html.H6("Group elements by ID"),
+            html.Label("Group ID:", style={'margin':'0 10px 0 10px'}),
+            dcc.Input(id="grp"),
+            dbc.Button("Assign ID to selection", color="primary", id="assignID"),
+
+        ],
+        style=styles['column']
+        )
+    return div
 
 #Update the graph
 @app.callback([Output('polyGraph', 'figure'),
@@ -542,9 +610,11 @@ def add2Main(n_clicks_all, n_clicks_select, meshTraces, mainTraces, selected, id
                Input('meshTraces', 'data'),
                Input('meshToggles','value'),
                Input('mainTraces', 'data'),
-               Input('mainToggle', 'value')],
+               Input('mainToggle', 'value'),
+               Input('colorData', 'data')],
+               [State('table', 'data')]
                )
-def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle):
+def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, colorData, tableData):
     """
     updates the figure.  the figure contains a single list of all the traces,
     and we need to know if these traces are contours, meshes, or main mesh.
@@ -591,16 +661,21 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle):
 
     if mainTraces != None:
         idxs = []
-        idData['mainStart'] = idx1
+        idxCombined = []
         for i,trace in enumerate(mainTraces):
             idx2 = 0
             if 0 in mainToggle:
-                trace['line']['color'] = '#a122f5'
+                #assign color based upon GroupID
+                if tableData[i]['GroupID'] != 0:
+                    trace['line']['color'] = colorData[tableData[i]['GroupID']]
+                else:
+                    trace['line']['color'] = colorData['default']
                 fig.add_trace(trace)
                 idxs.append(idx1+idx2)
                 idx2 += 1
             idx1 = idx1 + idx2
         idData['mainIdxs'] = idxs
+
 
     fig.update_layout(showlegend=False)
     fig.update_yaxes(scaleanchor = "x",scaleratio = 1,)

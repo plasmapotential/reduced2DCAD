@@ -291,8 +291,7 @@ class mesh:
         return cDicts
 
 
-    def shapelyPtables(self, solutions, pTablePath, gridSizes,
-                             mainOnly = False,):
+    def shapelyPtables(self, centroids, pTablePath, gridSizes, tableData):
         """
         creates a parallelogram table for input to EFIT/TOKSYS
 
@@ -301,16 +300,23 @@ class mesh:
         pTablePath is path where we save pTables
         """
         count = 0
-        pTable = np.zeros((len(solutions), 7))
-        for j,geom in enumerate(solutions):
+        pTable = np.zeros((len(centroids), 7))
+        for j,ctr in enumerate(centroids):
             #Rc
-            pTable[j,0] = np.array(geom.centroid)[0] *1e-3 #to meters
+            pTable[j,0] = ctr[0] *1e-3 #to meters
             #Zc
-            pTable[j,1] = np.array(geom.centroid)[1] *1e-3 #to meters
+            pTable[j,1] = ctr[1] *1e-3 #to meters
+
+            if type(gridSizes[j]) != float:
+                grid1 = gridSizes[j][0]
+                grid2 = gridSizes[j][1]
+            else:
+                grid1 = gridSizes[j]
+                grid2 = gridSizes[j]
             #L
-            pTable[j,2] = gridSizes[j] *1e-3 #to meters
+            pTable[j,2] = grid1/2.0 *1e-3 #to meters
             #w
-            pTable[j,3] = gridSizes[j] *1e-3 #to meters
+            pTable[j,3] = grid2/2.0 *1e-3 #to meters
             #AC1
             pTable[j,4] = 0.0
             #AC2
@@ -336,10 +342,70 @@ class mesh:
             fileList = [fileList]
         dfs = []
         for f in fileList:
-            df = pd.read_csv(f, skiprows=1)
+            df = pd.read_csv(f, skiprows=0)
             df.columns = ['Rc[m]', 'Zc[m]', 'L[m]', 'W[m]', 'AC1[deg]', 'AC2[deg]', 'GroupID']
             dfs.append(df)
         return dfs
+
+    def combineElements(self, data):
+        """
+        combines multiple mesh elements into a single element.
+        Only works for square/rectangular elements
+        """
+        Rc = [x['Rc[m]'] for x in data]
+        RminIdxs = [i for i, x in enumerate(Rc) if x == min(Rc)]
+        RmaxIdxs = [i for i, x in enumerate(Rc) if x == max(Rc)]
+
+        Zc = np.array([x['Zc[m]'] for x in data])
+        ZminIdxs = [i for i, x in enumerate(Zc) if x == min(Zc)]
+        ZmaxIdxs = [i for i, x in enumerate(Zc) if x == max(Zc)]
+
+        W = np.array([x['W[m]'] for x in data])
+        L = np.array([x['W[m]'] for x in data])
+        Wmin = max(W[RminIdxs])
+        Lmin = max(L[ZminIdxs])
+        Wmax = max(W[RmaxIdxs])
+        Lmax = max(L[ZmaxIdxs])
+
+        Rmin = min(Rc)
+        Rmax = max(Rc)
+        Zmin = min(Zc)
+        Zmax = max(Zc)
+
+        Wnew = ((Rmax+Wmax) - (Rmin-Wmin)) / 2.0
+        Lnew = ((Zmax+Lmax) - (Zmin-Lmin)) / 2.0
+        Rnew = Rmin-Wmin+Wnew
+        Znew = Zmin-Lmin+Lnew
+
+        #new grid
+        grid = [Wnew, Lnew]
+
+        #build new tableData entry
+        tableData={}
+        tableData['Rc[m]'] = Rnew
+        tableData['Zc[m]'] = Znew
+        tableData['W[m]'] = Wnew
+        tableData['L[m]'] = Lnew
+        tableData['AC1[deg]'] = 0
+        tableData['AC2[deg]'] = 0
+        tableData['GroupID'] = 0
+
+        #get plotly trace
+        xy = np.zeros((5,2))
+        xy[0,0] = ( Rnew - Wnew ) *1e3 #m to mm
+        xy[0,1] = ( Znew - Lnew ) *1e3 #m to mm
+        xy[1,0] = ( Rnew - Wnew ) *1e3 #m to mm
+        xy[1,1] = ( Znew + Lnew ) *1e3 #m to mm
+        xy[2,0] = ( Rnew + Wnew ) *1e3 #m to mm
+        xy[2,1] = ( Znew + Lnew ) *1e3 #m to mm
+        xy[3,0] = ( Rnew + Wnew ) *1e3 #m to mm
+        xy[3,1] = ( Znew - Lnew ) *1e3 #m to mm
+        xy[4,0] = ( Rnew - Wnew ) *1e3 #m to mm
+        xy[4,1] = ( Znew - Lnew ) *1e3 #m to mm
+        trace = self.XYtrace(xy, opac=0.4)
+
+        return grid, trace, tableData, [Rnew, Znew]
+
 
     def addMeshPlots2Fig(self, fig, solutions, opac=0.4):
         """
@@ -348,8 +414,15 @@ class mesh:
         for i,sol in enumerate(solutions):
             for j,geom in enumerate(sol.geoms):
                 xs, ys = np.array(geom.exterior.xy)
-                fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen")))
+                fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='mesh'))
         return fig
+
+    def XYtrace(self, xy, opac=0.4):
+        """
+        returns trace of XY points
+        """
+        trace = go.Scatter(x=xy[:,0], y=xy[:,1], mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='combined')
+        return trace
 
     def getMeshTraces(self, traces = None, opac=0.4):
         """
@@ -365,5 +438,5 @@ class mesh:
         for i,sol in enumerate(self.solutions):
             for j,geom in enumerate(sol.geoms):
                 xs, ys = np.array(geom.exterior.xy)
-                traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col)))
+                traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
         return traces
