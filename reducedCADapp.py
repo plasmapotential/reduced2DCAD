@@ -450,7 +450,7 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine,
         pTableOut = meshes[0].shapelyPtables(centroids,
                                              outPath,
                                              gridSizes,
-                                             mainOnly=True,
+                                             tableData,
                                              )
         #create pandas df
         df = meshes[0].createDFsFromCSVs(pTableOut)[0]
