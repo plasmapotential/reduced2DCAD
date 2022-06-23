@@ -35,6 +35,19 @@ class CAD3D:
         self.CAD = CADClass.CAD(os.environ["rootDir"], os.environ["dataPath"])
         return
 
+    def loadHEATCADenv(self, CADClassPath, FreeCADPath):
+        """
+        loads the HEAT CADClass environment
+        """
+        sys.path.append(CADClassPath)
+        sys.path.append(FreeCADPath)
+        #load HEAT CAD module
+        import CADClass
+        self.CAD = CADClass.CAD(os.environ["rootDir"], os.environ["dataPath"])
+#        self.CAD.loadPath(FreeCADPath)
+        return
+
+
     def loadSTPfile(self, STPfile):
         self.CAD.STPfile = STPfile
         print(self.CAD.STPfile)
@@ -174,10 +187,12 @@ class mesh:
     def __init__(self):
         return
 
-    def loadMeshParams(self, meshType, gridSize, phi):
+    def loadMeshParams(self, meshType, gridSize, phi, bounds=None):
         self.meshType = meshType
         self.grid_size = gridSize
         self.phi = phi
+        self.bounds = bounds
+        self.selection = []
         return
 
     def square(self, x, y, s):
@@ -218,7 +233,7 @@ class mesh:
                         holeRing = LinearRing(np.vstack([R_hole,Z_hole]).T)
                         holes.append(holeRing)
 
-                    #use polygon
+                    #use polygon to find intersections (solutions)
                     poly = Polygon(np.vstack([R_out,Z_out]).T, holes)
                     polyCoords = np.array(poly.exterior.coords)
                     ibounds = np.array(poly.bounds)//self.grid_size
@@ -234,10 +249,27 @@ class mesh:
         self.polygons = polygons
         self.solutions = solutions
         geoms = []
+        selection = []
+        idx = 0
         for s in self.solutions:
             for g in s.geoms:
                 geoms.append(g)
+                #if there is an active selection, create a list of idxs in the selection
+                #for us to reference later
+                if self.bounds != None:
+                    xs, ys = np.array(g.exterior.xy)
+                    test1 = np.max(xs) < self.bounds['x'][0]
+                    test2 = np.min(xs) > self.bounds['x'][1]
+                    test3 = np.max(ys) < self.bounds['y'][0]
+                    test4 = np.min(ys) > self.bounds['y'][1]
+                    if (test1 or test2 or test3 or test4) == False:
+                        selection.append(idx)
+                idx+=1
+
+        #append geoms and selection map to self
         self.geoms = geoms
+        if len(selection) > 0:
+            self.selection = self.selection + selection
         return
 
     def findEdgesAndHoles(self, contours):
@@ -296,7 +328,7 @@ class mesh:
         creates a parallelogram table for input to EFIT/TOKSYS
 
         solutions are shapely solution objects (list)
-        gridSizes are mesh grid sizes for each set of solutions (list)
+        gridSizes are mesh grid sizes for each set of solutions (list ie [R,Z])
         pTablePath is path where we save pTables
         """
         count = 0
@@ -314,9 +346,9 @@ class mesh:
                 grid1 = gridSizes[j]
                 grid2 = gridSizes[j]
             #L
-            pTable[j,2] = grid1/2.0 *1e-3 #to meters
+            pTable[j,2] = grid1 *1e-3 #to meters
             #w
-            pTable[j,3] = grid2/2.0 *1e-3 #to meters
+            pTable[j,3] = grid2 *1e-3 #to meters
             #AC1
             pTable[j,4] = 0.0
             #AC2
@@ -372,10 +404,23 @@ class mesh:
         Zmin = min(Zc)
         Zmax = max(Zc)
 
-        Wnew = ((Rmax+Wmax) - (Rmin-Wmin)) / 2.0
-        Lnew = ((Zmax+Lmax) - (Zmin-Lmin)) / 2.0
-        Rnew = Rmin-Wmin+Wnew
-        Znew = Zmin-Lmin+Lnew
+        Wnew = ((Rmax+Wmax/2.0) - (Rmin-Wmin/2.0))
+        Lnew = ((Zmax+Lmax/2.0) - (Zmin-Lmin/2.0))
+        Rnew = Rmin - Wmin/2.0 + Wnew/2.0
+        Znew = Zmin - Lmin/2.0 + Lnew/2.0
+
+        #for testing
+        #print(Wnew)
+        #print(Lnew)
+        #print('--')
+        #print(Rnew)
+        #print(Znew)
+        #print('--')
+        #print(Rmin)
+        #print(Zmin)
+        #print('--')
+        #print(Wmin)
+        #print(Lmin)
 
         #new grid
         grid = [Wnew, Lnew]
@@ -392,16 +437,16 @@ class mesh:
 
         #get plotly trace
         xy = np.zeros((5,2))
-        xy[0,0] = ( Rnew - Wnew ) *1e3 #m to mm
-        xy[0,1] = ( Znew - Lnew ) *1e3 #m to mm
-        xy[1,0] = ( Rnew - Wnew ) *1e3 #m to mm
-        xy[1,1] = ( Znew + Lnew ) *1e3 #m to mm
-        xy[2,0] = ( Rnew + Wnew ) *1e3 #m to mm
-        xy[2,1] = ( Znew + Lnew ) *1e3 #m to mm
-        xy[3,0] = ( Rnew + Wnew ) *1e3 #m to mm
-        xy[3,1] = ( Znew - Lnew ) *1e3 #m to mm
-        xy[4,0] = ( Rnew - Wnew ) *1e3 #m to mm
-        xy[4,1] = ( Znew - Lnew ) *1e3 #m to mm
+        xy[0,0] = ( Rnew - Wnew/2.0 ) *1e3 #m to mm
+        xy[0,1] = ( Znew - Lnew/2.0 ) *1e3 #m to mm
+        xy[1,0] = ( Rnew - Wnew/2.0 ) *1e3 #m to mm
+        xy[1,1] = ( Znew + Lnew/2.0 ) *1e3 #m to mm
+        xy[2,0] = ( Rnew + Wnew/2.0 ) *1e3 #m to mm
+        xy[2,1] = ( Znew + Lnew/2.0 ) *1e3 #m to mm
+        xy[3,0] = ( Rnew + Wnew/2.0 ) *1e3 #m to mm
+        xy[3,1] = ( Znew - Lnew/2.0 ) *1e3 #m to mm
+        xy[4,0] = ( Rnew - Wnew/2.0 ) *1e3 #m to mm
+        xy[4,1] = ( Znew - Lnew/2.0 ) *1e3 #m to mm
         trace = self.XYtrace(xy, opac=0.4)
 
         return grid, trace, tableData, [Rnew, Znew]
@@ -434,9 +479,90 @@ class mesh:
         #c = list(np.random.choice(range(256), size=3))
         #col = 'rgb({:d},{:d},{:d})'.format(c[0],c[1],c[2])
         col = 'seagreen'
+#        #loop thru all mesh elements and add them to the trace
+#        for i,sol in enumerate(self.solutions):
+#            for j,geom in enumerate(sol.geoms):
+#                xs, ys = np.array(geom.exterior.xy)
+#                #if we selected a bounding box in the figure, only include
+#                #elements within the bounds
+#                if self.bounds != None:
+#                    test1 = np.max(xs) < self.bounds['x'][0]
+#                    test2 = np.min(xs) > self.bounds['x'][1]
+#                    test3 = np.max(ys) < self.bounds['y'][0]
+#                    test4 = np.min(ys) > self.bounds['y'][1]
+#                    if (test1 or test2 or test3 or test4) == False:
+#                        traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
+#                else:
+#                    traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
+
         #loop thru all mesh elements and add them to the trace
-        for i,sol in enumerate(self.solutions):
-            for j,geom in enumerate(sol.geoms):
-                xs, ys = np.array(geom.exterior.xy)
+        self.selection = []
+        for j,geom in enumerate(self.geoms):
+            xs, ys = np.array(geom.exterior.xy)
+            #if we selected a bounding box in the figure, only include
+            #elements within the bounds
+            if self.bounds != None:
+                test1 = np.max(xs) < self.bounds['x'][0]
+                test2 = np.min(xs) > self.bounds['x'][1]
+                test3 = np.max(ys) < self.bounds['y'][0]
+                test4 = np.min(ys) > self.bounds['y'][1]
+                if (test1 or test2 or test3 or test4) == False:
+                    self.selection.append(j)
+                    traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
+            else:
                 traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
+
+
         return traces
+
+    def tracesFromPtable(self, df, opac=0.4):
+        """
+        generates a list of traces from a dataframe of a pTable csv file
+        """
+        traces = []
+        R = df['Rc'].values
+        Z = df['Zc'].values
+        L = df['L'].values
+        W = df['W'].values
+        col = 'seagreen'
+
+        #build a dummy object for reference later in mainMesh functions
+        #this dummy object looks like a shapely solution object but it is not
+        self.solutions = [solutionClass(len(R))]
+        self.solutions[0].geoms = []
+        self.geoms = []
+        self.grid_size = []
+
+        for i in range(len(R)):
+            xs = np.array([
+                            R[i] - W[i]/2.0,
+                            R[i] - W[i]/2.0,
+                            R[i] + W[i]/2.0,
+                            R[i] + W[i]/2.0,
+                            R[i] - W[i]/2.0,
+                            ])
+            ys = np.array([
+                            Z[i] - L[i]/2.0,
+                            Z[i] + L[i]/2.0,
+                            Z[i] + L[i]/2.0,
+                            Z[i] - L[i]/2.0,
+                            Z[i] - L[i]/2.0,
+                            ])
+            #create dummy solutions and geoms accounting for units m=>mm
+            self.solutions[0].geoms.append(geomClass(R[i]*1000.0,Z[i]*1000.0))
+            self.grid_size.append([W[i]*1000.0, L[i]*1000.0])
+            #append trace with data scaled from m to mm
+            traces.append(go.Scatter(x=xs*1000.0, y=ys*1000.0, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='pTable'))
+
+        self.geoms = self.solutions[0].geoms
+        return traces
+
+#dummy classes for reading pTables
+class solutionClass:
+    def __init__(self, Ngeoms):
+        self.geoms = []
+        return
+class geomClass:
+    def __init__(self, R, Z):
+        self.centroid = [R,Z]
+        return

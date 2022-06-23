@@ -21,8 +21,8 @@ services:
       # === FOR LINUX ===
 #      # HEAT source code from github
 #      - /home/tom/source/HEAT/github/source:/root/source/HEAT
-#      # CADtools source code from github
-#       - /home/tom/source/CADtools:/root/source/CADtools
+#      # reduced2DCAD source code from github
+#       - /home/tom/source/reduced2DCAD:/root/source/reduced2DCAD
 #      # files dir
 #       - /home/tom/work/CFS/projects/reduced2DCAD:/root/files
 #

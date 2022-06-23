@@ -1,0 +1,43 @@
+#!/bin/bash
+#parse arguments
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -u|--upgrade)
+      UPGRADE="True"
+      shift # past argument
+      shift # past value
+      ;;
+    -a|--address)
+      ADDRESS="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -p|--port)
+      PORT="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+#install any requirements
+if [[ -z ${UPGRADE} ]]; then
+  echo "Not upgrading packages"
+else
+  pip3 install -r requirements.txt
+  #upgrade dash
+  pip3 install dash --upgrade
+fi
+
+#run application
+if [[ -z ${ADDRESS} ]]; then
+  python3 reducedCADlauncher.py
+else
+  python3 reducedCADlauncher.py --a ${ADDRESS} --p ${PORT}
+fi
