@@ -141,7 +141,8 @@ class CAD2D:
             for c in slice:
                 R = np.sqrt(c[:,0]**2+c[:,1]**2)
                 Z = c[:,2]
-                fig.add_trace(go.Scatter(x=R, y=Z, mode='lines+markers'))
+                #fig.add_trace(go.Scatter(x=R, y=Z, mode='lines+markers'))
+                fig.add_trace(go.Scattergl(x=R, y=Z, mode='lines+markers'))
         return fig
 
     def getContourTraces(self):
@@ -153,7 +154,7 @@ class CAD2D:
             for c in slice:
                 R = np.sqrt(c[:,0]**2+c[:,1]**2)
                 Z = c[:,2]
-                traces.append(go.Scatter(x=R, y=Z, mode='lines+markers'))
+                traces.append(go.Scattergl(x=R, y=Z, mode='lines+markers'))
         return traces
 
 
@@ -434,14 +435,14 @@ class mesh:
         for i,sol in enumerate(solutions):
             for j,geom in enumerate(sol.geoms):
                 xs, ys = np.array(geom.exterior.xy)
-                fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='mesh'))
+                fig.add_trace(go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='mesh'))
         return fig
 
     def XYtrace(self, xy, opac=0.4):
         """
         returns trace of XY points
         """
-        trace = go.Scatter(x=xy[:,0], y=xy[:,1], mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='combined')
+        trace = go.Scattergl(x=xy[:,0], y=xy[:,1], mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='combined')
         return trace
 
     def getMeshTraces(self, traces = None, opac=0.4):
@@ -483,9 +484,9 @@ class mesh:
                 test4 = np.min(ys) > self.bounds['y'][1]
                 if (test1 or test2 or test3 or test4) == False:
                     self.selection.append(j)
-                    traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
+                    traces.append(go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
             else:
-                traces.append(go.Scatter(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
+                traces.append(go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
 
 
         return traces
@@ -527,7 +528,7 @@ class mesh:
             self.solutions[0].geoms.append(geomClass(R[i]*1000.0,Z[i]*1000.0))
             self.grid_size.append([W[i]*1000.0, L[i]*1000.0])
             #append trace with data scaled from m to mm
-            traces.append(go.Scatter(x=xs*1000.0, y=ys*1000.0, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='pTable'))
+            traces.append(go.Scattergl(x=xs*1000.0, y=ys*1000.0, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='pTable'))
 
         self.geoms = self.solutions[0].geoms
         return traces

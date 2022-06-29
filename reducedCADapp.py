@@ -114,6 +114,7 @@ def generateLayout(fig, df):
     #generate HTML5 application
     app.layout = html.Div([
         #data storage object
+        dcc.Store(id='pTableData', storage_type='memory'),
         dcc.Store(id='colorData', storage_type='memory'),
         dcc.Store(id='contourTraces', storage_type='memory'),
         dcc.Store(id='meshTraces', storage_type='memory'),
@@ -182,6 +183,8 @@ def generateLayout(fig, df):
                                     data=df.to_dict('records'),
                                     export_format="csv",
                                     style_cell=dict(textAlign='left'),
+                                    row_deletable=True,
+                                    selected_rows=[],
                                     #style_header=dict(backgroundColor="paleturquoise"),
                                     #style_data=dict(backgroundColor="lavender")
                                     ),
@@ -533,7 +536,8 @@ def meshDisplayDiv():
               [Input('addAll', 'n_clicks'),
                Input('addSelect', 'n_clicks'),
                Input('assignID', 'n_clicks'),
-               Input('combine', 'n_clicks')],
+               Input('combine', 'n_clicks'),
+               Input('table', 'data_previous'),],
               [State('meshTraces', 'data'),
                State('mainTraces', 'data'),
                State('polyGraph', 'selectedData'),
@@ -541,10 +545,10 @@ def meshDisplayDiv():
                State('outPath', 'value'),
                State('grp', 'value'),
                State('colorData', 'data'),
-               State('table', 'data')
+               State('table', 'data'),
                ],
                )
-def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine,
+def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
              meshTraces, mainTraces, selected,
              idData, outPath, group, colorData, tableData):
     """
@@ -633,16 +637,25 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine,
 
                             #mainMesh is already initialized
                             else:
-                                if id not in mainMap:
-                                    mainMap.append(id)
-                                    mainTraces.append(m[mappedID])
-                                    solutions.append(meshes[idx].geoms[selectMap])
-                                    centroids.append(np.array(meshes[idx].geoms[selectMap].centroid))
-                                    if meshes[idx].meshType != 'file':
-                                        gridSizes.append(meshes[idx].grid_size)
-                                    else:
-                                        gridSizes.append(meshes[idx].grid_size[selectMap])
-
+                                mainMap.append(id)
+                                mainTraces.append(m[mappedID])
+                                solutions.append(meshes[idx].geoms[selectMap])
+                                centroids.append(np.array(meshes[idx].geoms[selectMap].centroid))
+                                if meshes[idx].meshType != 'file':
+                                    gridSizes.append(meshes[idx].grid_size)
+                                else:
+                                    gridSizes.append(meshes[idx].grid_size[selectMap])
+#                                if id not in mainMap:
+#                                    mainMap.append(id)
+#                                    mainTraces.append(m[mappedID])
+#                                    solutions.append(meshes[idx].geoms[selectMap])
+#                                    centroids.append(np.array(meshes[idx].geoms[selectMap].centroid))
+#                                    if meshes[idx].meshType != 'file':
+#                                        gridSizes.append(meshes[idx].grid_size)
+#                                    else:
+#                                        gridSizes.append(meshes[idx].grid_size[selectMap])
+#                                else:
+#                                    print('ID in mainMap')
                 #get pTable
                 pTableOut = meshes[0].shapelyPtables(centroids,
                                                      outPath,
@@ -724,6 +737,20 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine,
                     tableData.pop(idx)
             tableData.append(tData)
 
+    elif button_id == 'table':
+        if prev_tableData is None:
+            raise PreventUpdate
+        else:
+            removedRow = [row for row in prev_tableData if row not in tableData]
+            removedIdx = prev_tableData.index(removedRow[0])
+
+            #mainIdx = mainMap[removedIdx]
+            mainTraces.pop(removedIdx)
+            #idData['mainIdxs'].pop(removedIdx)
+            solutions.pop(removedIdx)
+            centroids.pop(removedIdx)
+            gridSizes.pop(removedIdx)
+            mainMap.pop(removedIdx)
 
     options = [{'label':'Main Mesh', 'value':0}]
     value = [0]
@@ -732,8 +759,22 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine,
     if colorData is None:
         #default color
         colorData = {'default':'#d059ff'}
+        colorData['selected'] = '#f5a911'
 
     return [mainTraces, options, value, tableData, colorData]
+
+
+##table data
+#@app.callback([Output('table', 'data')],
+#              [Input('pTableData', 'data')],
+#               )
+#def updateTable(data):
+#    """
+#    updates dash table when data storage object changes
+#    """
+#    if data == None:
+#        raise PreventUpdate
+#    return data
 
 
 
@@ -763,10 +804,11 @@ def mainOpsDiv():
                Input('meshToggles','value'),
                Input('mainTraces', 'data'),
                Input('mainToggle', 'value'),
-               Input('colorData', 'data')],
+               Input('colorData', 'data'),
+               Input('table', 'active_cell'),],
                [State('table', 'data')]
                )
-def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, colorData, tableData):
+def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, colorData, activeCell, tableData):
     """
     updates the figure.  the figure contains a single list of all the traces,
     and we need to know if these traces are contours, meshes, or main mesh.
@@ -795,7 +837,6 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
         idData['contourIdxs'] = idxs
 
     if meshTraces != None:
-
         idData['meshIdxs'] = []
         #trace index where each independent mesh starts
         idData['meshStarts'] = []
@@ -812,16 +853,20 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
             idData['meshIdxs'].append(idxs)
 
     if mainTraces != None:
+        activeRow = activeCell['row'] if activeCell else None
         idxs = []
         idxCombined = []
         for i,trace in enumerate(mainTraces):
             idx2 = 0
             if 0 in mainToggle:
                 #assign color based upon GroupID
-                if tableData[i]['GroupID'] != 0:
-                    trace['line']['color'] = colorData[tableData[i]['GroupID']]
+                if activeRow!=None and i==activeRow:
+                    trace['line']['color'] = colorData['selected']
                 else:
-                    trace['line']['color'] = colorData['default']
+                    if tableData[i]['GroupID'] != 0:
+                        trace['line']['color'] = colorData[tableData[i]['GroupID']]
+                    else:
+                        trace['line']['color'] = colorData['default']
                 fig.add_trace(trace)
                 idxs.append(idx1+idx2)
                 idx2 += 1
