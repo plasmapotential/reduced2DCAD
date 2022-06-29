@@ -126,31 +126,6 @@ class CAD2D:
             if len(contours) > 0:
                 contourList.append(contours)
 
-
-
-#            if len(contours)!=0:
-#                #make the outermost contour the 1st list element
-#                idx = 0
-#                xMax = 0
-#                yMax = 0
-#                zMax = 0
-#                for i,c in enumerate(contours):
-#                    if max(c[:,0]) > xMax:
-#                        xMax = max(c[:,0])
-#                        idx = i
-#                    elif max(c[:,1]) > yMax:
-#                        yMax = max(c[:,1])
-#                        idx = i
-#                    if max(c[:,2]) > zMax:
-#                        zMax = max(c[:,2])
-#                        idx = i
-#
-#                contours.insert(0, contours.pop(idx))
-#                #now append with idxOuter as 0 index
-#                contourList.append(contours)
-
-
-
         self.contourList = contourList
         return
 

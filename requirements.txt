@@ -1,7 +1,11 @@
 dash
+stl
+numpy
+pandas
 plotly
 numpy
 pandas
+psutil
 shapely
 dash_bootstrap_components
 dash_bootstrap_templates

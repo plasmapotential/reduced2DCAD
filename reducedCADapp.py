@@ -234,17 +234,26 @@ def CADdiv():
 #Load CAD button connect
 @app.callback([Output('hiddenDivCAD', 'children')],
               [Input('CAD-upload', 'filename')],
-              [State('HEATpath', 'value'),
+              [State('CAD-upload', 'contents'),
+               State('HEATpath', 'value'),
                State('CADpath', 'value'),]
                )
-def loadCAD(STPfile, HEATpath, CADpath):
+def loadCAD(STPfile, STPdata, HEATpath, CADpath):
     if STPfile is None:
         raise PreventUpdate
     else:
+        content_type, content_string = STPdata.split(',')
+        decoded = base64.b64decode(content_string)
+        f = '/tmp/loadedCAD.step'
+        with open(f, 'wb') as file:
+            file.write(decoded)
+
+
         #Load HEAT environment
         CAD3D.loadHEAT(HEATpath)
         #Load STP file
-        CAD3D.loadSTPfile(CADpath + STPfile)
+        #CAD3D.loadSTPfile(CADpath + STPfile)
+        CAD3D.loadSTPfile(f)
 
     return [html.Label("Loaded CAD: "+STPfile)]
 
