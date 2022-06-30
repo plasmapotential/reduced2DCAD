@@ -773,7 +773,7 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, p
             solutions.pop(removedIdx)
             centroids.pop(removedIdx)
             gridSizes.pop(removedIdx)
-            mainMap.pop(removedIdx)
+            #mainMap.pop(removedIdx)
 
     options = [{'label':'Main Mesh', 'value':0}]
     value = [0]
