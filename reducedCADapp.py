@@ -41,17 +41,21 @@ print("Running in environment: "+runMode)
 #inputs
 if runMode == 'docker':
     #for use in docker container:
+    sourcePath = '/root/source/reduced2DCAD'
     HEAT = '/root/source/HEAT'
-    path = '/root/files/'
-    STPfile = path + 'VVcompsAdjusted.step'
-    STP2D = path + '2Dout.step'
+    filesPath = '/root/files/'
+    #STPfile = path + 'VVcompsAdjusted.step'
+    #STP2D = path + '2Dout.step'
+    FreeCADPath = '/usr/lib/freecad-python3/lib'
 else:
     #for use in tom's dev env
-    path = '/home/tom/work/CFS/projects/reducedCAD/'
-    STPfile = path + 'vacVes.step'
+    sourcePath = '/home/tom/source/reduced2DCAD/github'
+    filesPath = '/home/tom/work/CFS/projects/reducedCAD'
+    #STPfile = path + 'vacVes.step'
     #STPfile = path + 'VVcompsAdjusted.step'
-    STP2D = path + '2Dout.step'
+    #STP2D = path + '2Dout.step'
     HEAT = '/home/tom/source/HEAT/github/source'
+    FreeCADPath = '/usr/lib/freecad-daily/lib'
 
 #DASH server
 app = Dash(__name__, external_stylesheets=[dbc.themes.MATERIA])
@@ -133,10 +137,12 @@ def generateLayout(fig, df):
                                 html.H6("Environment Settings"),
                                 html.Label(children="HEAT Path: "),
                                 dcc.Input(id="HEATpath", value=HEAT),
-                                html.Label(children="Path to CAD file: "),
-                                dcc.Input(id="CADpath", value=path),
+                                html.Label(children="Path to Source Code: "),
+                                dcc.Input(id="sourcePath", value=sourcePath),
+                                html.Label(children="Path to FreeCAD libs: "),
+                                dcc.Input(id="freeCADPath", value=FreeCADPath),
                                 html.Label(children="Path to save output: "),
-                                dcc.Input(id="outPath", value=path),
+                                dcc.Input(id="outPath", value=filesPath),
                                 ],
                                 style=styles['column']
                                 )
@@ -239,21 +245,29 @@ def CADdiv():
               [Input('CAD-upload', 'filename')],
               [State('CAD-upload', 'contents'),
                State('HEATpath', 'value'),
-               State('CADpath', 'value'),]
+               State('sourcePath', 'value'),
+               State('freeCADPath', 'value'),]
                )
-def loadCAD(STPfile, STPdata, HEATpath, CADpath):
+def loadCAD(STPfile, STPdata, HEATpath, sourcePath, FreeCADPath):
     if STPfile is None:
         raise PreventUpdate
     else:
         content_type, content_string = STPdata.split(',')
         decoded = base64.b64decode(content_string)
-        f = '/tmp/loadedCAD.step'
+        f = '/tmp/loadedCAD.step' #tmp location
         with open(f, 'wb') as file:
             file.write(decoded)
 
 
-        #Load HEAT environment
-        CAD3D.loadHEAT(HEATpath)
+
+        global runMode
+        if runMode == 'local':
+            #Load HEAT environment
+            CAD3D.loadHEAT(HEATpath)
+        else:
+            #Load CAD environment only
+            CAD3D.loadHEATCADenv(sourcePath, FreeCADPath)
+
         #Load STP file
         #CAD3D.loadSTPfile(CADpath + STPfile)
         CAD3D.loadSTPfile(f)
@@ -271,8 +285,16 @@ def sectionDiv():
             dcc.Input(id="phi", value=0),
             html.Label(children="Rmax of cutting plane [mm] (width=0 to Rmax): "),
             dcc.Input(id="rMax", value=5000),
-            html.Label(children="Zrange of cutting plane [mm]: "),
+            html.Label(children="Zrange of cutting plane [mm] (height above z=0): "),
             dcc.Input(id="zMax", value=10000),
+            html.Hr(),
+            dbc.Checklist(
+                options=[{'label':"Discretize Curves?", 'value':1}],
+                    value=[1],
+                    id='discreteToggle',
+                    switch=True,
+                    ),
+            html.Hr(),
             dbc.Button("Section CAD at phi", color="primary", id="loadSection"),
             html.Div(id="hiddenDivSection"),
         ],
@@ -287,14 +309,15 @@ def sectionDiv():
               [State('rMax', 'value'),
                State('zMax', 'value'),
                State('phi', 'value'),
-               State('polyGraph', 'figure')]
+               State('polyGraph', 'figure'),
+               State('discreteToggle', 'value')]
                )
-def loadSection(n_clicks, rMax, zMax, phi, fig):
+def loadSection(n_clicks, rMax, zMax, phi, fig, discreteTog):
     if n_clicks == None or n_clicks < 1:
         raise PreventUpdate
     else:
         #create cross section
-        CAD2D.sectionParams(float(rMax),float(zMax),float(phi))
+        CAD2D.sectionParams(float(rMax),float(zMax),float(phi),discreteTog)
         CAD2D.sectionCAD(CAD3D.CAD)
         CAD2D.buildContourList(CAD3D.CAD)
         traces = CAD2D.getContourTraces()
@@ -759,7 +782,7 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, p
     if colorData is None:
         #default color
         colorData = {'default':'#d059ff'}
-        colorData['selected'] = '#f5a911'
+        colorData['selected'] = '#000000'
 
     return [mainTraces, options, value, tableData, colorData]
 
@@ -862,6 +885,7 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
                 #assign color based upon GroupID
                 if activeRow!=None and i==activeRow:
                     trace['line']['color'] = colorData['selected']
+                    trace['opacity'] = 1.0
                 else:
                     if tableData[i]['GroupID'] != 0:
                         trace['line']['color'] = colorData[tableData[i]['GroupID']]

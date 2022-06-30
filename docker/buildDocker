@@ -20,6 +20,9 @@ cp -n github/requirements.txt dockerDir/docker
 
 # copy code into the AppDir
 rm -rf /home/tom/source/reduced2DCAD/github/docker
+#copy CADClass
+ln -s /home/tom/source/HEAT/github/source/CADClass.py /home/tom/source/reduced2DCAD/github/
+ln -s /home/tom/source/HEAT/github/source/toolsClass.py /home/tom/source/reduced2DCAD/github/
 cp -r /home/tom/source/reduced2DCAD/github/*  dockerDir/source/reduced2DCAD/
 
 #copy docker files to reduced2DCAD rootDir for uploading to github
@@ -30,6 +33,7 @@ cp buildDocker /home/tom/source/reduced2DCAD/github/docker/
 cp docker-compose.yml /home/tom/source/reduced2DCAD/github/docker/
 cp Dockerfile /home/tom/source/reduced2DCAD/github/docker/
 cp runDockerCompose /home/tom/source/reduced2DCAD/github/docker/
+
 
 #run docker build command
 echo "Building docker image..."

@@ -20,24 +20,18 @@ services:
       #
       #
 #      # === FOR Devon's Mac ===
-#      # HEAT source code from github
-#       - /Users/dbattaglia@cfs.energy/Documents/reduced2DCAD/HEAT/source:/root/source/HEAT
 #      # reduced2DCAD source code from github
 #       - /Users/dbattaglia@cfs.energy/Documents/reduced2DCAD/reduced2DCAD:/root/source/reduced2DCAD
 #      # files dir
 #       - /Users/dbattaglia@cfs.energy/Documents/reduced2DCAD/CAD_files:/root/files
 #
       # === FOR Tom's LINUX ===
-      # HEAT source code from github
-       - /home/tom/source/HEAT/github/source:/root/source/HEAT
       # reduced2DCAD source code from github
        - /home/tom/source/reduced2DCAD/github:/root/source/reduced2DCAD
       # files dir
        - /home/tom/work/CFS/projects/reducedCAD:/root/files
 #
 #      # === FOR Tom's WINDOWS ===
-#      # HEAT source code from github
-#       - C:\Users\tlooby\github\HEAT\source:/root/source/HEAT
 #      # CADtools source code from github
 #       - C:\Users\tlooby\github\reduced2DCAD:/root/source/reduced2DCAD
 #      # files directory

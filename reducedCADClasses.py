@@ -23,6 +23,8 @@ class CAD3D:
     def loadHEAT(self, HEATpath):
         """
         loads the HEAT environment, loads CADclass object into self
+        Requires the HEAT environment to be installed either locally or via
+        docker
         """
         sys.path.append(HEATpath)
 
@@ -38,12 +40,14 @@ class CAD3D:
     def loadHEATCADenv(self, CADClassPath, FreeCADPath):
         """
         loads the HEAT CADClass environment
+        This can be run with only CADClass.py and toolsClass.py from the HEAT
+        source code (ie no full HEAT environment)
         """
         sys.path.append(CADClassPath)
         sys.path.append(FreeCADPath)
         #load HEAT CAD module
         import CADClass
-        self.CAD = CADClass.CAD(os.environ["rootDir"], os.environ["dataPath"])
+        self.CAD = CADClass.CAD(None, None)
 #        self.CAD.loadPath(FreeCADPath)
         return
 
@@ -65,13 +69,20 @@ class CAD2D:
         return
 
 
-    def sectionParams(self, rMax, zMax, phi):
+    def sectionParams(self, rMax, zMax, phi, discretizeToggle):
         """
         initialize 2D cross section object
         """
         self.rMax = rMax
         self.zMax = zMax
         self.phi = phi
+        #if we discretize curves
+        if 1 in discretizeToggle:
+            self.discretize = True
+        else:
+            self.discretize = False
+        #if we discretize curves, number of figs after radix
+        self.radixFigs = 3
         return
 
     def sectionCAD(self, CAD3D):
@@ -121,7 +132,7 @@ class CAD2D:
         contourList = []
         edgeList = []
         for slice in self.slices:
-            edgeList = CAD.getVertexesFromEdges(slice.Shape.Edges)
+            edgeList = CAD.getVertexesFromEdges(slice.Shape.Edges, self.discretize, self.radixFigs)
             contours = CAD.findContour(edgeList)
             if len(contours) > 0:
                 contourList.append(contours)
