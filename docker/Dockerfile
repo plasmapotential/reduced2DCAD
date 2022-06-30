@@ -10,7 +10,7 @@
 # docker build -t plasmapotential/reduced2dcad -f ./Dockerfile ./github/source
 
 # start from base
-FROM ubuntu:22.04
+FROM ubuntu:20.04
 
 MAINTAINER Tom Looby <tlooby@cfs.energy>
 
@@ -28,8 +28,8 @@ RUN apt-get -yqq install python3
 RUN apt-get -yqq install python3-pip
 RUN apt-get -yqq install python3-pkg-resources
 RUN apt-get -yqq install python3-distutils
-#RUN apt-get -yqq install libfreecad-python3-0.18
-RUN apt-get -yqq install libfreecad-python3-0.19
+RUN apt-get -yqq install libfreecad-python3-0.18
+#RUN apt-get -yqq install libfreecad-python3-0.19
 RUN apt-get -yqq install libnglib-6.2
 RUN apt-get -yqq install coreutils
 RUN apt-get -yqq install nano
