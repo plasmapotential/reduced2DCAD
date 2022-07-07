@@ -319,7 +319,7 @@ class mesh:
         pTablePath is path where we save pTables
         """
         count = 0
-        pTable = np.zeros((len(centroids), 7))
+        pTable = np.zeros((len(centroids), 11))
         for j,ctr in enumerate(centroids):
             #Rc
             pTable[j,0] = ctr[0] *1e-3 #to meters
@@ -340,13 +340,21 @@ class mesh:
             pTable[j,4] = 0.0
             #AC2
             pTable[j,5] = 0.0
-            #GroupID
-            pTable[j,6] = 0
+            #NL
+            pTable[j,6] = 1
+            #NW
+            pTable[j,7] = 1
+            #material
+            pTable[j,8] = 0
+            #caf
+            pTable[j,9] = 1
+            #isf
+            pTable[j,10] = 1
 
         #save pTableAll
         pTableOut = pTablePath + 'pTableAll.csv'
         print("Saving Parallelogram Table...")
-        head = 'Rc[m], Zc[m], L[m], W[m], AC1[deg], AC2[deg], GroupID'
+        head = 'Rc[m], Zc[m], L[m], W[m], AC1[deg], AC2[deg], NL, NW, material, caf, isf'
         try:
             np.savetxt(pTableOut, pTable, delimiter=',',fmt='%.10f', header=head)
         except:
@@ -362,7 +370,7 @@ class mesh:
         dfs = []
         for f in fileList:
             df = pd.read_csv(f, skiprows=0)
-            df.columns = ['Rc[m]', 'Zc[m]', 'L[m]', 'W[m]', 'AC1[deg]', 'AC2[deg]', 'GroupID']
+            df.columns = ['Rc[m]', 'Zc[m]', 'L[m]', 'W[m]', 'AC1[deg]', 'AC2[deg]', 'NL', 'NW', 'material', 'caf', 'isf']
             dfs.append(df)
         return dfs
 
@@ -420,7 +428,11 @@ class mesh:
         tableData['L[m]'] = Lnew
         tableData['AC1[deg]'] = 0
         tableData['AC2[deg]'] = 0
-        tableData['GroupID'] = 0
+        tableData['NL'] = 1
+        tableData['NW'] = 1
+        tableData['material'] = 0
+        tableData['caf'] = 0
+        tableData['isf'] = 0
 
         #get plotly trace
         xy = np.zeros((5,2))

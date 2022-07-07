@@ -38,6 +38,7 @@ RUN apt-get -yqq install libnglib-6.2
 RUN apt-get -yqq install coreutils
 RUN apt-get -yqq install nano
 RUN apt-get -yqq install git
+RUN apt-get -yqq install net-tools
 
 # copy context
 WORKDIR /root/docker/

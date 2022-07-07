@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import pandas as pd
 
 fig = go.Figure()
-df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
+df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'material':[], 'NL':[],'NW':[], 'caf':[], 'isf':[]})
 #launch the GUI
 import reducedCADapp as GUI
 GUI.generateLayout(fig, df)

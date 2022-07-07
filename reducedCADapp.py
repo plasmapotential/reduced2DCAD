@@ -383,7 +383,7 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
         mesh.selection = []
         meshes.append(mesh)
 
-        head = ['Rc', 'Zc', 'L', 'W', 'AC1', 'AC2', 'GroupID']
+        head = ['Rc', 'Zc', 'L', 'W', 'AC1', 'AC2', 'NL', 'NW', 'material', 'caf', 'isf']
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
 
@@ -587,7 +587,7 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, p
 
     button_id = ctx.triggered_id
 
-    df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'GroupID':[]})
+    df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'NL':[], 'NW':[], 'material':[], 'caf':[], 'isf':[]})
     if button_id == None:
         raise PreventUpdate
     elif button_id == 'addAll':
@@ -716,9 +716,9 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, p
                         group = 0
                     #also update the table
                     try:
-                        tableData[idx]['GroupID'] = group
+                        tableData[idx]['material'] = group
                     except: #contour traces will not have tableData
-                        print("Group ID "+str(idx)+" not found in table!")
+                        print("Material "+str(idx)+" not found in table!")
                     if group not in colorData:
                         colorData[group] = px.colors.qualitative.Plotly[len(colorData)]
 
@@ -809,8 +809,8 @@ def mainOpsDiv():
             dbc.Button("Combine selected elements", color="primary", id="combine"),
             html.Div(id="hiddenDivMainOps"),
             html.Hr(),
-            html.H6("Group elements by ID"),
-            html.Label("Group ID:", style={'margin':'0 10px 0 10px'}),
+            html.H6("Group elements by material ID"),
+            html.Label("Material ID:", style={'margin':'0 10px 0 10px'}),
             dcc.Input(id="grp"),
             dbc.Button("Assign ID to selection", color="primary", id="assignID"),
 
@@ -882,13 +882,13 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
         for i,trace in enumerate(mainTraces):
             idx2 = 0
             if 0 in mainToggle:
-                #assign color based upon GroupID
+                #assign color based upon material
                 if activeRow!=None and i==activeRow:
                     trace['line']['color'] = colorData['selected']
                     trace['opacity'] = 1.0
                 else:
-                    if tableData[i]['GroupID'] != 0:
-                        trace['line']['color'] = colorData[tableData[i]['GroupID']]
+                    if tableData[i]['material'] != 0:
+                        trace['line']['color'] = colorData[tableData[i]['material']]
                     else:
                         trace['line']['color'] = colorData['default']
                 fig.add_trace(trace)

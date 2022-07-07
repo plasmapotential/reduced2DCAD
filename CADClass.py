@@ -501,8 +501,9 @@ class CAD:
         and default angular deviation is 0.523599rad (30deg)
         """
         if fineRes==True:
-            surfDev =0.05
-            angDev = 0.523599
+            print("Running standard mesher with fine resolution (0.01mm and 3deg deviations)")
+            surfDev =0.01
+            angDev = 0.0523599
         #Check if this is a single file or list and make it a list
         if type(part) != list:
             part = [part]
@@ -1130,6 +1131,7 @@ class CAD:
             y = np.array([])
             z = np.array([])
             #handle curves
+            #kif discretize==True:
             if edge.Edges[0].Curve.TypeId != 'Part::GeomLine' and discretize==True:
                 N = int(edge.Edges[0].Length / 20.0) #discretize in 20mm segments
                 if N < 2:

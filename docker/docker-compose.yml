@@ -36,7 +36,12 @@ services:
 #       - C:\Users\tlooby\github\reduced2DCAD:/root/source/reduced2DCAD
 #      # files directory
 #       - C:\Users\tlooby\SPARC\2DreducedCAD:/root/files
-
+#
+#      # === FOR TokOps MDS+ Server ===
+#      # CADtools source code from github
+#       - /home/tlooby/source/reduced2DCAD:/root/source/reduced2DCAD
+#      # files directory
+#       - /tmp/files:/root/files
     stdin_open: true # docker run -i
     tty: true        # docker run -t
     #if you want to set env vars, do it here:
