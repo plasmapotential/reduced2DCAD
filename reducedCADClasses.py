@@ -51,7 +51,7 @@ class CAD3D:
         import CADClass
         self.CAD = CADClass.CAD(None, None)
 #        self.CAD.loadPath(FreeCADPath)
-    
+
         return
 
 
@@ -193,16 +193,19 @@ class mesh:
         creates a square mesh over the contours in contourList
         using the Shapely library
         """
+        self.polygons = []
+        self.solutions = []
+        self.geoms = []
         polygons = []
         solutions = []
-        for c in contourList:
-            #check if this contour has any holes
-            cDict = self.findEdgesAndHoles(c)
-            N_edges = np.sum([d['type']=='edge' for d in cDict])
-            N_holes = np.sum([d['type']=='hole' for d in cDict])
+        #run across multiple cores
+        if parallel == True:
+            for c in contourList:
+                #check if this contour has any holes
+                cDict = self.findEdgesAndHoles(c)
+                N_edges = np.sum([d['type']=='edge' for d in cDict])
+                N_holes = np.sum([d['type']=='hole' for d in cDict])
 
-            #run across multiple cores
-            if parallel == True:
                 N = len(cDict)
                 self.cDict = cDict
                 self.c = c
@@ -218,42 +221,75 @@ class mesh:
                 #Do this try clause to kill any zombie threads that don't terminate
                 try:
                     manager = multiprocessing.Manager()
-                    self.tmpPolys = manager.list()
-                    self.tmpSols = manager.list()
                     pool = multiprocessing.Pool(Ncores)
-                    pool.map(self.parallelSquares, np.arange(N))
+                    output = np.asarray(pool.map(self.parallelSquares, np.arange(N)))
+                    polygons = output[:,0][output[:,0]!=None]
+                    solutions = output[:,1][output[:,1]!=None]
                 finally:
                     pool.close()
                     pool.join()
                     del pool
                     del manager
                 print("Multiprocessing complete")
+                self.polygons.append(polygons)
+                self.solutions.append(solutions)
 
-                self.polygons = self.tmpPolys
-                self.solutions = self.tmpSols
+#for now we dont need to multiprocess this - use loo below
+#                N = len(self.solutions)
+#                print('Initializing selection checker across {:d} cores'.format(Ncores))
+#                print('Spawning tasks to multiprocessing workers')
+#                #Do this try clause to kill any zombie threads that don't terminate
+#                try:
+#                    manager = multiprocessing.Manager()
+#                    self.geom = manager.list()
+#                    self.selection = manager.list()
+#                    self.selectIdx = manager.Value('i',0)
+#                    pool = multiprocessing.Pool(Ncores)
+#                    geoms = pool.map(self.parallelSelectionCheck, np.arange(N))
+#                finally:
+#                    pool.close()
+#                    pool.join()
+#                    del pool
+#                    del manager
+#                print("Multiprocessing complete")
+#                print(geoms)
+#                self.geoms = list(np.array(geoms).flatten())
+#                self.selection = self.selection[:]
+                geoms = []
+                selection = []
+                idx = 0
+                for s in solutions:
+                    for g in s.geoms:
+                        self.geoms.append(g)
+                        #if there is an active selection, create a list of idxs in the selection
+                        #for us to reference later
+                        if self.bounds != None:
+                            xs, ys = np.array(g.exterior.xy)
+                            test1 = np.max(xs) < self.bounds['x'][0]
+                            test2 = np.min(xs) > self.bounds['x'][1]
+                            test3 = np.max(ys) < self.bounds['y'][0]
+                            test4 = np.min(ys) > self.bounds['y'][1]
+                            if (test1 or test2 or test3 or test4) == False:
+                                selection.append(idx)
+                        idx+=1
 
-                N = len(self.solutions)
-                print('Initializing selection checker across {:d} cores'.format(Ncores))
-                print('Spawning tasks to multiprocessing workers')
-                #Do this try clause to kill any zombie threads that don't terminate
-                try:
-                    manager = multiprocessing.Manager()
-                    self.geoms = manager.list()
-                    self.selection = manager.list()
-                    self.selectIdx = manager.Value('i',0)
-                    pool = multiprocessing.Pool(Ncores)
-                    pool.map(self.parallelSelectionCheck, np.arange(N))
-                finally:
-                    pool.close()
-                    pool.join()
-                    del pool
-                    del manager
-                print("Multiprocessing complete")
-                self.geoms = self.geoms[:]
-                self.selection = self.selection[:]
+                #append geoms and selection map to self
+                #self.geoms = geoms
+                if len(selection) > 0:
+                    self.selection = self.selection + selection
 
-            #run across single core
-            else:
+            #convert these arrays to 1d lists for use later in mainMesh
+            self.polygons = list(np.array(self.polygons).flatten())
+            self.solutions = list(np.array(self.solutions).flatten())
+
+        #run across single core
+        else:
+            for c in contourList:
+                #check if this contour has any holes
+                cDict = self.findEdgesAndHoles(c)
+                N_edges = np.sum([d['type']=='edge' for d in cDict])
+                N_holes = np.sum([d['type']=='hole' for d in cDict])
+
                 outerContour = []
                 holeContours = []
                 #loop thru all contours in this c and build meshes accordingly
@@ -318,8 +354,9 @@ class mesh:
 
 
     def parallelSelectionCheck(self,i):
+        geoms = []
         for g in self.solutions[i].geoms:
-            self.geoms.append(g)
+            geoms.append(g)
             #if there is an active selection, create a list of idxs in the selection
             #for us to reference later
             if self.bounds != None:
@@ -331,7 +368,7 @@ class mesh:
                 if (test1 or test2 or test3 or test4) == False:
                     self.selection.append(self.selectIdx.value)
             self.selectIdx.value += 1
-        return
+        return geoms
 
     def parallelSquares(self, i):
         #loop thru all contours in this c and build meshes accordingly
@@ -364,9 +401,10 @@ class mesh:
             yrg = np.arange(ymin, ymax, self.grid_size)
             mp = MultiPolygon([self.square(x, y, self.grid_size) for x in xrg for y in yrg])
             solution = MultiPolygon(list(filter(poly.intersects, mp)))
-            self.tmpPolys.append(poly)
-            self.tmpSols.append(solution)
-        return 0
+        else:
+            poly=None
+            solution=None
+        return poly, solution
 
     def findEdgesAndHoles(self, contours):
         """
@@ -608,8 +646,8 @@ class mesh:
         #loop thru all mesh elements and add them to the trace
         self.selection = []
         N = len(self.geoms)
-        print('Initializing trace adder across {:d} cores'.format(Ncores))
-        print('Spawning tasks to multiprocessing workers')
+
+        print("Parallel Multiprocessing Run Commencing...")
         #Do this try clause to kill any zombie threads that don't terminate
         try:
             manager = multiprocessing.Manager()
@@ -625,7 +663,6 @@ class mesh:
             pool.join()
             del pool
             del manager
-        print("Multiprocessing complete")
 
         opac = 0.4
         col = 'seagreen'
@@ -636,6 +673,7 @@ class mesh:
         #flatY = [y for ys in tmpY for y in ys]
         #self.traces.append(go.Scattergl(x=flatX, y=flatY, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
         #return list(np.array(self.traces)[np.array(self.idxMap[:])])
+
         use = np.where(np.array(self.traces[:])!=None)[0]
         return list(np.array(self.traces)[use])
 
