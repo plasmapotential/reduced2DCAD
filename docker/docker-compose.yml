@@ -25,11 +25,11 @@ services:
 #      # files dir
 #       - /Users/dbattaglia@cfs.energy/Documents/reduced2DCAD/CAD_files:/root/files
 #
-      # === FOR Tom's LINUX ===
-      # reduced2DCAD source code from github
-       - /home/tom/source/reduced2DCAD/github:/root/source/reduced2DCAD
-      # files dir
-       - /home/tom/work/CFS/projects/reducedCAD:/root/files
+#      # === FOR Tom's LINUX ===
+#      # reduced2DCAD source code from github
+#       - /home/tom/source/reduced2DCAD/github:/root/source/reduced2DCAD
+#      # files dir
+#       - /home/tom/work/CFS/projects/reducedCAD:/root/files
 #
 #      # === FOR Tom's WINDOWS ===
 #      # CADtools source code from github
@@ -37,12 +37,12 @@ services:
 #      # files directory
 #       - C:\Users\tlooby\SPARC\2DreducedCAD:/root/files
 #
-#      # === FOR TokOps MDS+ Server ===
-#      # edit <tlooby> below to match your installation
-#      # CADtools source code from github
-#       - /home/tlooby/source/reduced2DCAD:/root/source/reduced2DCAD
-#      # files directory
-#       - /tmp/files:/root/files
+      # === FOR TokOps MDS+ Server ===
+      # edit <tlooby> below to match your installation
+      # CADtools source code from github
+       - /home/tlooby/source/reduced2DCAD:/root/source/reduced2DCAD
+      # files directory (dont need to change this on TokOps server)
+       - /tmp/files:/root/files
     stdin_open: true # docker run -i
     tty: true        # docker run -t
     #if you want to set env vars, do it here:
