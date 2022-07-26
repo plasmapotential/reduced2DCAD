@@ -19,6 +19,8 @@ import os
 #sys.path = [FREECADPATH]
 
 import FreeCAD
+#set compound merge on STP imports to Off
+FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Import/hSTEP").SetBool("ReadShapeCompoundMode", False)
 import Part
 import Mesh
 
@@ -643,6 +645,13 @@ class CAD:
         Reads a previously generated STL file and generates 1 mesh object.
         """
         mesh = Mesh.Mesh(filename)
+        return mesh
+
+    def createEmptyMesh(self):
+        """
+        returns an empty mesh object
+        """
+        mesh = Mesh.Mesh()
         return mesh
 
     def normsCentersAreas(self, meshes):

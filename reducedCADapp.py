@@ -46,7 +46,8 @@ if runMode == 'docker':
     filesPath = '/root/files/'
     #STPfile = path + 'VVcompsAdjusted.step'
     #STP2D = path + '2Dout.step'
-    FreeCADPath = '/usr/lib/freecad-python3/lib'
+    #FreeCADPath = '/usr/lib/freecad-python3/lib'
+    FreeCADPath = '/usr/lib/freecad-daily-python3/lib'
 else:
     #for use in tom's dev env
     sourcePath = '/home/tom/source/reduced2DCAD/github'
@@ -444,8 +445,11 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
             else:
                 bounds = None
 
+            print("T1 = {:f}".format(time.time()-t0))
             mesh.loadMeshParams(type, float(gridSize), float(phi), bounds)
+            print("T2 = {:f}".format(time.time()-t0))
             mesh.createSquareMesh(CAD2D.contourList, gridSize)
+            print("T3 = {:f}".format(time.time()-t0))
             meshes.append(mesh)
 
             #mesh overlay
@@ -461,6 +465,7 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
                 toggleVals = []
             else:
                 toggleVals = meshToggleVals
+            print("T4 = {:f}".format(time.time()-t0))
             #append mesh names for toggle switching
             for i,mesh in enumerate(meshes):
                 if mesh.meshType != 'file':
@@ -845,6 +850,7 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
     of all of the figure indexes that correspond to this group (contours, meshes,
     main meshes)
     """
+    t0 = time.time()
     idData = {}
     idx1 = 0
     fig = go.Figure()
@@ -858,6 +864,8 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
             idx2 += 1
         idx1 = idx1 + idx2
         idData['contourIdxs'] = idxs
+    print("GUI Contour Build Time: {:f}".format(time.time()-t0))
+    t1 = time.time()
 
     if meshTraces != None:
         idData['meshIdxs'] = []
@@ -869,12 +877,26 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
             if i in toggleVals:
                 idx2 = 0
                 for j,trace in enumerate(mesh):
-                    fig.add_trace(trace)
+                    #old method
+                    #fig.add_trace(trace)
                     idxs.append(idx1+idx2)
                     idx2 += 1
+                    #new method
+                    if j==0:
+                        t = trace
+                    else:
+                        t['x'].extend([None])
+                        t['x'].extend(trace['x'])
+                        t['y'].extend([None])
+                        t['y'].extend(trace['y'])
+                fig.add_trace(t)
+
+
                 idx1 = idx1 + idx2
             idData['meshIdxs'].append(idxs)
 
+    print("GUI Mesh Build Time: {:f}".format(time.time()-t1))
+    t1 = time.time()
     if mainTraces != None:
         activeRow = activeCell['row'] if activeCell else None
         idxs = []
@@ -896,7 +918,8 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, c
                 idx2 += 1
             idx1 = idx1 + idx2
         idData['mainIdxs'] = idxs
-
+    print("GUI MainMesh Build Time: {:f}".format(time.time()-t1))
+    print("GUI Total Time: {:f}".format(time.time()-t0))
 
     fig.update_layout(showlegend=False)
     fig.update_yaxes(scaleanchor = "x",scaleratio = 1,)

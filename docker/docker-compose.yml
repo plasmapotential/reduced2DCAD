@@ -38,6 +38,7 @@ services:
 #       - C:\Users\tlooby\SPARC\2DreducedCAD:/root/files
 #
 #      # === FOR TokOps MDS+ Server ===
+#      # edit <tlooby> below to match your installation
 #      # CADtools source code from github
 #       - /home/tlooby/source/reduced2DCAD:/root/source/reduced2DCAD
 #      # files directory
@@ -53,12 +54,8 @@ services:
 
 
 #NOTES:
-#to run HEAT in batch mode, first bind mount the /root/terminal directory to your
-#local directory with the batchFile, then run:
-# python3 launchHEAT.py --m t --f /root/terminal/batchFile.dat
-#
 #to run an interactive shell use this command:
-# docker-compose run HEAT /bin/bash
+# docker-compose run reduced2DCAD /bin/bash
 #
 # to change image tag name:
-# docker tag plasmapotential/heat:latest plasmapotential/heat:<tag>
+# docker tag plasmapotential/reduced2DCAD:latest plasmapotential/reduced2DCAD:<tag>

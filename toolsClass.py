@@ -40,7 +40,6 @@ class tools:
 
         #Set all variables to None
         self.vars2None(obj)
-
         if infile == None:
             print("You must provide an input file!")
             sys.exit()
@@ -49,7 +48,6 @@ class tools:
 
         #After importing from file, set data types
         obj.setTypes()
-
         return
 
     def vars2None(self,obj):
@@ -1012,7 +1010,7 @@ class tools:
             newVar = None
         else:
             try:
-                newVar = int(var)
+                newVar = int(float(var))
             except:
                 newVar = var
         return newVar
@@ -1073,3 +1071,12 @@ class tools:
         normDist[flipLoc,:] *= -1.0
 
         return normDist
+
+    def calculatePowerDir(self, bdotn, Bt0):
+        """
+        calculate the power flow direction
+
+        returns a vector of length bdotn than has the toroidal direction
+        power flows (-1 is clockwise from above)
+        """
+        return np.sign(bdotn)*np.sign(Bt0)*-1.0
