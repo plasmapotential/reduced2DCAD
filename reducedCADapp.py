@@ -79,6 +79,11 @@ styles = {
         'vertical-align': 'middle',
         'justify-content': 'center',
     },
+    'col2': {
+        'width': '45%',
+        'height': '100%',
+        'max-height': '90%',
+    },
     'column': {
         'width': '45%',
         'height': '100%',
@@ -118,14 +123,16 @@ styles = {
 def generateLayout(fig, df):
     #generate HTML5 application
     app.layout = html.Div([
+        dcc.Location(id='url'),
         #data storage object
+        dcc.Store(id='sizeStore', storage_type='memory'),
         dcc.Store(id='pTableData', storage_type='memory'),
-        dcc.Store(id='colorData', storage_type='memory'),
         dcc.Store(id='contourTraces', storage_type='memory'),
         dcc.Store(id='meshTraces', storage_type='memory'),
         dcc.Store(id='mainTraces', storage_type='memory'),
         dcc.Store(id='meshColorTraces', storage_type='memory'),
         dcc.Store(id='idData', storage_type='memory'),
+        dcc.Store(id='mapData', storage_type='memory'),
 
         #graph Div
         html.Div([
@@ -214,12 +221,13 @@ def generateLayout(fig, df):
                     config={'displaylogo':False,},
                 ),
                 ],
-                style=styles['column']
+                style=styles['col2']
                 ),
             ],
             style=styles['bigApp']
             ),
         ],
+        style=styles['bigApp']
         )
 
 def CADdiv():
@@ -321,7 +329,7 @@ def loadSection(n_clicks, rMax, zMax, phi, fig, discreteTog):
         CAD2D.sectionParams(float(rMax),float(zMax),float(phi),discreteTog)
         CAD2D.sectionCAD(CAD3D.CAD)
         CAD2D.buildContourList(CAD3D.CAD)
-        traces = CAD2D.getContourTraces()
+        traces = CAD2D.rzTraces()
 
     return [html.Label("Sectioned CAD"), traces]
 
@@ -365,10 +373,9 @@ def meshCreateDiv():
                State('meshTraces', 'data'),
                State('meshToggles', 'options'),
                State('meshToggles', 'value'),
-               State('phi','value'),
-               State('polyGraph', 'selectedData'),]
+               State('phi','value'),]
                )
-def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, meshToggleVals, phi, selected):
+def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, meshToggleVal, phi):
     """
     creates a grid and updates meshData storage object and toggles
     """
@@ -395,6 +402,7 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
             elif 'xls' in fileName:
                 # Assume that the user uploaded an excel file
                 df = pd.read_excel(io.BytesIO(decoded))
+
         except Exception as e:
             print(e)
 
@@ -404,14 +412,6 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
         meshTraces.append(mesh.tracesFromPtable(df))
         name = fileName
 
-        if meshToggleVals == None or None in meshToggleVals or len(meshToggleVals)==0:
-            i=0
-            toggleVals = [i]
-        else:
-            i = max(meshToggleVals)+1
-            meshToggleVals.append(i)
-            toggleVals = meshToggleVals
-
         options = []
         #append mesh names for toggle switching
         for i,mesh in enumerate(meshes):
@@ -420,6 +420,8 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
             else:
                 name = mesh.file
             options.append({'label': name, 'value': i})
+
+        toggleVals = i
 
         #options.append({'label': name, 'value': i})
         status = html.Label("Loaded Mesh From File")
@@ -439,29 +441,19 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
         if np.any(test) == False:
             mesh = RC.mesh()
 
-            #get bounds of selection
-            if selected != None:
-                bounds = selected['range']
-            else:
-                bounds = None
-
-            mesh.loadMeshParams(type, float(gridSize), float(phi), bounds)
+            mesh.loadMeshParams(type, float(gridSize), float(phi), None)
             mesh.createSquareMesh(CAD2D.contourList, gridSize)
             meshes.append(mesh)
 
             #mesh overlay
-            #traces = mesh.getMeshTraces(meshTraces)
             if meshTraces == None:
                 meshTraces = []
-            meshTraces.append(mesh.getMeshTraces())
+            out = mesh.getMeshTraces()
+            meshTraces.append(out)
 
             #mesh checkboxes
             options = []
 
-            if None in meshToggleVals:
-                toggleVals = []
-            else:
-                toggleVals = meshToggleVals
             #append mesh names for toggle switching
             for i,mesh in enumerate(meshes):
                 if mesh.meshType != 'file':
@@ -470,48 +462,16 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
                     name = mesh.file
                 options.append({'label': name, 'value': i})
             #append the last index
-            if i not in meshToggleVals:
-                toggleVals.append(i)
+            toggleVals = i
 
             status = html.Label("Loaded Mesh")
 
         else:
-            if selected == None:
-                traces = meshTraces
-                options = meshToggles
-                toggleVals = meshToggleVals
-                status = html.Label("Mesh Already Loaded")
+            traces = meshTraces
+            options = meshToggles
+            toggleVals = meshToggleVal
+            status = html.Label("Mesh Already Loaded")
 
-            #new selection on existing mesh
-            else:
-                print("Creating new selection on existing mesh")
-                #find mesh
-                idx = np.where(test==True)[0][0]
-                meshes[idx].bounds = selected['range']
-
-                #meshTraces[idx] = meshTraces[idx] + meshes[idx].getMeshTraces()
-                meshTraces[idx] = meshes[idx].getMeshTraces()
-
-                #mesh checkboxes
-                options = []
-                if None in meshToggleVals:
-                    toggleVals = []
-                else:
-                    toggleVals = meshToggleVals
-                #append mesh names for toggle switching
-                for i,mesh in enumerate(meshes):
-                    if mesh.meshType != 'file':
-                        name = mesh.meshType + " {:0.1f}mm at {:0.1f}\u00B0 ".format(mesh.grid_size, mesh.phi)
-                    else:
-                        name = mesh.file
-                    options.append({'label': name, 'value': i})
-
-
-                #append the index
-                if idx not in meshToggleVals:
-                    toggleVals.append(idx)
-
-                status = html.Label("Loaded Mesh")
 
         print("Mesh Execution Time: {:f} seconds".format(time.time()-t0))
         print("Number of mesh elements: {:d}".format(len(meshTraces[-1])))
@@ -525,23 +485,21 @@ def meshDisplayDiv():
     """
     div = html.Div([
                 html.H6("Available Meshes: "),
-                dbc.Checklist(
+                dbc.RadioItems(
                     options=[
 
                         ],
-                        value=[None],
+                        value=None,
                         id='meshToggles',
-                        switch=True,
+
                         ),
-                html.Br(),
-                dbc.Button("Add all existing meshes to main mesh", color="primary", id="addAll"),
                 html.Hr(),
                 dbc.Button("Add selection to main mesh", color="primary", id="addSelect"),
                 html.Br(),
                 html.H6("Main Mesh: "),
                 dbc.Checklist(
                     options=[],
-                        value=[None],
+                        value=[],
                         id='mainToggle',
                         switch=True,
                         ),
@@ -555,26 +513,31 @@ def meshDisplayDiv():
 @app.callback([Output('mainTraces', 'data'),
                Output('mainToggle', 'options'),
                Output('mainToggle', 'value'),
-               Output('table', 'data'),
-               Output('colorData', 'data')],
-              [Input('addAll', 'n_clicks'),
-               Input('addSelect', 'n_clicks'),
+               Output('table', 'data')],
+              [Input('addSelect', 'n_clicks'),
                Input('assignID', 'n_clicks'),
                Input('combine', 'n_clicks'),
                Input('table', 'data_previous'),],
               [State('meshTraces', 'data'),
                State('mainTraces', 'data'),
-               State('polyGraph', 'selectedData'),
+               State('meshToggles', 'value'),
+               State('mapData', 'data'),
                State('idData', 'data'),
                State('outPath', 'value'),
-               State('grp', 'value'),
-               State('colorData', 'data'),
                State('table', 'data'),
+               State('polyGraph', 'relayoutData'),
+               State('matGrp', 'value'),
+               State('nlGrp', 'value'),
+               State('nwGrp', 'value'),
+               State('cafGrp', 'value'),
+               State('isfGrp', 'value'),
                ],
                )
-def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
-             meshTraces, mainTraces, selected,
-             idData, outPath, group, colorData, tableData):
+def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
+             meshTraces, mainTraces, toggleVal, mapData,
+             idData, outPath,tableData, shapeData,
+             matGrp,nlGrp,nwGrp,cafGrp,isfGrp
+             ):
     """
     add to main mesh callbacks
 
@@ -591,175 +554,129 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, p
     df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'NL':[], 'NW':[], 'material':[], 'caf':[], 'isf':[]})
     if button_id == None:
         raise PreventUpdate
-    elif button_id == 'addAll':
-        mainTraces =  [m for sub in meshTraces for m in sub]
-        solutions = []
-        gridSizes = []
-        centroids = []
-        for m in meshes:
-            for s in m.solutions:
-                for i,g in enumerate(s.geoms):
-                    solutions.append(g)
-                    centroids.append(np.array(g.centroid))
-                    if m.meshType != 'file':
-                        gridSizes.append(m.grid_size)
-                    else:
-                        gridSizes.append(m.grid_size[i])
-        #get pTable
-        pTableOut = meshes[0].shapelyPtables(centroids,
-                                             outPath,
-                                             gridSizes,
-                                             tableData,
-                                             )
-        #create pandas df
-        df = meshes[0].createDFsFromCSVs(pTableOut)[0]
-        tableData = df.to_dict('records')
 
     elif button_id == 'addSelect':
-        if selected is not None:
+        if shapeData is not None:
             if mainTraces == None:
                 mainTraces = []
-            #get mesh elements in selection
-            ids = []
-            for i,pt in enumerate(selected['points']):
-                id = int(pt['curveNumber'])
-                ids.append(id)
 
-            #add mesh elements in selection to main mesh if they are mesh elements
-            #and aren't already in the main mesh
-            if 'meshIdxs' not in list(idData.keys()):
-                print("No meshes displayed.  Doing nothing")
-            else:
-                #loop thru IDs in selection from figure
-                for id in np.unique(ids):
-                    #loop thru all meshes to find selected mesh elements
-                    for idx,m in enumerate(meshTraces):
-                        #map mesh trace elements back to figure trace elements
-                        mappedID = id - idData['meshStarts'][idx]
+            mesh = meshes[toggleVal]
+            mT = meshTraces[toggleVal]
 
-                        #check if this trace is in the mesh
-                        if id in idData['meshIdxs'][idx]:
-                            #if there is a selection on the mesh, we need to map
-                            #the mappedID of the figure back to only the selected
-                            #elements of the mesh displayed (not all mesh elements)
-                            if len(meshes[idx].selection) == 0:
-                                selectMap = mappedID #no selection
-                            else:
-                                #mapping from figure selection to mesh.selection
-                                selectMap = meshes[idx].selection[mappedID]
+            x0,x1,y0,y1 = mesh.getRectangleBounds(shapeData)
 
-                            #if we havent initialized main mesh yet
-                            if 'mainIdxs' not in list(idData.keys()):
-                                mainMap.append(id)
-                                mainTraces.append(m[mappedID])
-                                solutions.append(meshes[idx].geoms[selectMap])
-                                centroids.append(np.array(meshes[idx].geoms[selectMap].centroid))
-                                if meshes[idx].meshType != 'file':
-                                    gridSizes.append(meshes[idx].grid_size)
-                                else:
-                                    gridSizes.append(meshes[idx].grid_size[selectMap])
+            z = np.zeros((mapData['Ny'],mapData['Nx']))
+            for m in mT:
+                #test if each element m is inside box
+                xM0 = np.min(np.array(m)[:,0])
+                xM1 = np.max(np.array(m)[:,0])
+                yM0 = np.min(np.array(m)[:,1])
+                yM1 = np.max(np.array(m)[:,1])
+                if xM0 > x0 and xM1 < x1 and yM0 > y1 and yM1 < y0:
+                    mainTraces.append(m)
+                    #get ptable data for this m
+                    gridSizes.append([mesh.grid_size, mesh.grid_size])
+                    ctrX = (xM1-xM0)/2.0 + xM0
+                    ctrY = (yM1-yM0)/2.0 + yM0
+                    centroids.append([ctrX,ctrY])
 
-                            #mainMesh is already initialized
-                            else:
-                                mainMap.append(id)
-                                mainTraces.append(m[mappedID])
-                                solutions.append(meshes[idx].geoms[selectMap])
-                                centroids.append(np.array(meshes[idx].geoms[selectMap].centroid))
-                                if meshes[idx].meshType != 'file':
-                                    gridSizes.append(meshes[idx].grid_size)
-                                else:
-                                    gridSizes.append(meshes[idx].grid_size[selectMap])
-#                                if id not in mainMap:
-#                                    mainMap.append(id)
-#                                    mainTraces.append(m[mappedID])
-#                                    solutions.append(meshes[idx].geoms[selectMap])
-#                                    centroids.append(np.array(meshes[idx].geoms[selectMap].centroid))
-#                                    if meshes[idx].meshType != 'file':
-#                                        gridSizes.append(meshes[idx].grid_size)
-#                                    else:
-#                                        gridSizes.append(meshes[idx].grid_size[selectMap])
-#                                else:
-#                                    print('ID in mainMap')
-                #get pTable
-                pTableOut = meshes[0].shapelyPtables(centroids,
+            #get pTable
+            pTableOut = meshes[0].shapelyPtables(centroids,
                                                     outPath,
                                                     gridSizes,
                                                     tableData,
                                                     )
 
-                #create pandas df
-                df = meshes[0].createDFsFromCSVs(pTableOut)[0]
-                tableData = df.to_dict('records')
+            #create pandas df
+            df = meshes[0].createDFsFromCSVs(pTableOut)[0]
+            tableData = df.to_dict('records')
+
 
     #assign group ID to main mesh elements
     elif button_id == 'assignID':
         if n_clicks_assign == None:
             raise PreventUpdate
+
         #selected data is None on page load, dont fire callback
-        if selected is not None:
+        if shapeData is not None:
             #user must input a group ID
-            if group == None:
-                print("You must enter a value for group!")
+            if matGrp==None or nlGrp==None or nwGrp==None or cafGrp==None or isfGrp==None:
+                print("No properties entered...")
                 raise PreventUpdate
-            #get mesh elements in selection
-            ids = []
-            for i,pt in enumerate(selected['points']):
-                ids.append(pt['curveNumber'])
-            #initialize colorData dictionary
-            if colorData is None:
-                colorData = {}
-            #loop thru IDs of selected, assigning color by group
-            ids = np.array(np.unique(ids))
-            for ID in ids:
-                if ID in idData['mainIdxs']:
-                    idx = idData['mainIdxs'].index(ID)
-                    if group == None:
-                        group = 0
-                    #also update the table
+
+            x0,x1,y0,y1 = meshes[0].getRectangleBounds(shapeData)
+
+            minR = 10000.0
+            maxR = 0.0
+            minZ = 10000.0
+            maxZ = 0.0
+
+            idxs = []
+            for i,m in enumerate(mainTraces):
+                #test if each element m is inside box
+                xM0 = np.min(np.array(m)[:,0])
+                xM1 = np.max(np.array(m)[:,0])
+                yM0 = np.min(np.array(m)[:,1])
+                yM1 = np.max(np.array(m)[:,1])
+
+                if xM0 > x0 and xM1 < x1 and yM0 > y1 and yM1 < y0:
                     try:
-                        tableData[idx]['material'] = group
+                        tableData[i]['material'] = matGrp
+                        tableData[i]['NL'] = nlGrp
+                        tableData[i]['NW'] = nwGrp
+                        tableData[i]['caf'] = cafGrp
+                        tableData[i]['isf'] = isfGrp
+
                     except: #contour traces will not have tableData
-                        print("Material "+str(idx)+" not found in table!")
-                    if group not in colorData:
-                        colorData[group] = px.colors.qualitative.Plotly[len(colorData)]
+                        print("Could not assign properties!")
 
     elif button_id == 'combine':
         if n_clicks_combine == None:
             raise PreventUpdate
-        if selected is not None:
-            #get mesh elements in selection
-            ids = []
-            for i,pt in enumerate(selected['points']):
-                ids.append(pt['curveNumber'])
-            #loop thru IDs of selected, assigning color by group
-            ids = np.array(np.unique(ids))
+        if shapeData is not None:
+            if mainTraces == None:
+                mainTraces = []
+
+            x0,x1,y0,y1 = meshes[0].getRectangleBounds(shapeData)
+
+            minR = 10000.0
+            maxR = 0.0
+            minZ = 10000.0
+            maxZ = 0.0
+
             idxs = []
+            oldTable = []
+            for i,m in enumerate(mainTraces):
+                #test if each element m is inside box
+                xM0 = np.min(np.array(m)[:,0])
+                xM1 = np.max(np.array(m)[:,0])
+                yM0 = np.min(np.array(m)[:,1])
+                yM1 = np.max(np.array(m)[:,1])
 
-            #remove mesh elements we are combining
-            #reverse so we dont mess up the list index as we go
-            for ID in sorted(ids, reverse=True):
-                if ID in idData['mainIdxs']:
-                    idx = idData['mainIdxs'].index(ID)
-                    idxs.append(idx)
-                    solutions.pop(idx)
-                    centroids.pop(idx)
-                    gridSizes.pop(idx)
-                    mainTraces.pop(idx)
-
-            #combine elements into single element
-            idxs = np.array(sorted(idxs))
-            grid, trace, tData, ctrs = meshes[0].combineElements(np.array(tableData)[idxs])
+                if xM0 > x0 and xM1 < x1 and yM0 > y1 and yM1 < y0:
+                    idxs.append(i)
+                    #find bounds of mesh in box
+                    if xM0 < minR: minR = xM0
+                    if xM1 > maxR: maxR = xM1
+                    if yM0 < minZ: minZ = yM0
+                    if yM1 > maxZ: maxZ = yM1
+            #remove small mesh elements
+            for i in reversed(idxs):
+                #solutions.pop(i)
+                centroids.pop(i)
+                gridSizes.pop(i)
+                mainTraces.pop(i)
+                oldTable.append(tableData[i])
+                tableData.pop(i)
+            #combine into big element
+            grid, trace, tData, ctrs = meshes[0].combineElements(oldTable)
             solutions.append(None)
             centroids.append(ctrs)
             gridSizes.append(grid)
             mainTraces.append(trace)
-
-            #remove elements that were combined from pTable
-            for ID in sorted(ids, reverse=True):
-                if ID in idData['mainIdxs']:
-                    idx = idData['mainIdxs'].index(ID)
-                    tableData.pop(idx)
             tableData.append(tData)
+
+
 
     elif button_id == 'table':
         if prev_tableData is None:
@@ -767,25 +684,14 @@ def add2Main(n_clicks_all, n_clicks_select, n_clicks_assign, n_clicks_combine, p
         else:
             removedRow = [row for row in prev_tableData if row not in tableData]
             removedIdx = prev_tableData.index(removedRow[0])
-
-            #mainIdx = mainMap[removedIdx]
             mainTraces.pop(removedIdx)
-            #idData['mainIdxs'].pop(removedIdx)
-            solutions.pop(removedIdx)
             centroids.pop(removedIdx)
             gridSizes.pop(removedIdx)
-            #mainMap.pop(removedIdx)
 
     options = [{'label':'Main Mesh', 'value':0}]
     value = [0]
 
-    #initialize colorData dictionary
-    if colorData is None:
-        #default color
-        colorData = {'default':'#d059ff'}
-        colorData['selected'] = '#000000'
-
-    return [mainTraces, options, value, tableData, colorData]
+    return [mainTraces, options, value, tableData]
 
 
 ##table data
@@ -810,10 +716,18 @@ def mainOpsDiv():
             dbc.Button("Combine selected elements", color="primary", id="combine"),
             html.Div(id="hiddenDivMainOps"),
             html.Hr(),
-            html.H6("Group elements by material ID"),
-            html.Label("Material ID:", style={'margin':'0 10px 0 10px'}),
-            dcc.Input(id="grp"),
-            dbc.Button("Assign ID to selection", color="primary", id="assignID"),
+            html.H6("Change element properties"),
+            html.Label("Material:", style={'margin':'0 10px 0 10px'}),
+            dcc.Input(id="matGrp"),
+            html.Label("NL:", style={'margin':'0 10px 0 10px'}),
+            dcc.Input(id="nlGrp"),
+            html.Label("NW:", style={'margin':'0 10px 0 10px'}),
+            dcc.Input(id="nwGrp"),
+            html.Label("caf:", style={'margin':'0 10px 0 10px'}),
+            dcc.Input(id="cafGrp"),
+            html.Label("isf:", style={'margin':'0 10px 0 10px'}),
+            dcc.Input(id="isfGrp"),
+            dbc.Button("Assign properties to selection", color="primary", id="assignID"),
 
         ],
         style=styles['column']
@@ -822,95 +736,149 @@ def mainOpsDiv():
 
 #Update the graph
 @app.callback([Output('polyGraph', 'figure'),
-               Output('idData', 'data')],
+               Output('polyGraph', 'config'),
+               Output('idData', 'data'),
+               Output('mapData', 'data')],
               [Input('contourTraces', 'data'),
                Input('meshTraces', 'data'),
                Input('meshToggles','value'),
                Input('mainTraces', 'data'),
                Input('mainToggle', 'value'),
-               Input('colorData', 'data'),
                Input('table', 'active_cell'),],
-               [State('table', 'data')]
+               [State('table', 'data'),
+                State('sizeStore', 'data')]
                )
-def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle, colorData, activeCell, tableData):
+def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle,
+                activeCell, tableData, size):
     """
-    updates the figure.  the figure contains a single list of all the traces,
-    and we need to know if these traces are contours, meshes, or main mesh.
-    to do this we use idData dict.
+    updates the figure.  the figure contains a heatmap and a scatter trace
 
-    idData contains a 'start' index for each of those groups (contours, meshes,
-    main meshes), and the indices within those groups can be mapped back to
-    the figure indices via these 'start' values
+    heatmap is a regular grid defined by the smallest mesh element size, and
+    represents the mesh
 
-    idData also contains an 'Idxs' key:value pair, where the value is a list
-    of all of the figure indexes that correspond to this group (contours, meshes,
-    main meshes)
+    scatter trace is the contour plots of the toroidal slices
+
     """
-    t0 = time.time()
     idData = {}
+    mapData = {}
     idx1 = 0
+    minGrid = 10000.0 #default
+    xMin = 1000.0
+    xMax = 3000.0
+    yMin = -2000.0
+    yMax = 2000.0
+    trigger = ctx.triggered_id
     fig = go.Figure()
-    if contourTraces != None:
-        idxs = []
-        idx2 = 0
-        idData['contourStart'] = idx1
-        for i,trace in enumerate(contourTraces):
-            fig.add_trace(trace)
-            idxs.append(idx1+idx2)
-            idx2 += 1
-        idx1 = idx1 + idx2
-        idData['contourIdxs'] = idxs
 
-    if meshTraces != None:
-        idData['meshIdxs'] = []
-        #trace index where each independent mesh starts
-        idData['meshStarts'] = []
-        for i,mesh in enumerate(meshTraces):
-            idxs = []
-            idData['meshStarts'].append(idx1)
-            if i in toggleVals:
-                idx2 = 0
-                for j,trace in enumerate(mesh):
-                    #old method
-                    fig.add_trace(trace)
-                    idxs.append(idx1+idx2)
-                    idx2 += 1
-                    ##new method
-                    #if j==0:
-                    #    t = trace
-                    #else:
-                    #    t['x'].extend([None])
-                    #    t['x'].extend(trace['x'])
-                    #    t['y'].extend([None])
-                    #    t['y'].extend(trace['y'])
-                #fig.add_trace(t)
+    if trigger == None:
+        raise PreventUpdate
+
+    #trigger conditions
+    meshTriggers = ['meshTraces', 'meshToggles']
+    mainTriggers = ['mainTraces', 'mainToggle', 'meshTraces', 'meshToggles', 'table']
+    contourTriggers = ['contourTraces','meshToggles','meshTraces', 'mainTraces', 'mainToggle', 'table']
+
+    cs2 = [[0, 'white'], [0.25, 'white'],
+            [0.25, 'blue'], [0.5, 'blue'],
+            [0.5, 'seagreen'], [0.75, 'seagreen'],
+            [0.75, 'red'], [1.0, 'red']]
 
 
-                idx1 = idx1 + idx2
-            idData['meshIdxs'].append(idxs)
+    #build the grid
+    if trigger in meshTriggers or trigger in mainTriggers:
+        for i,mesh in enumerate(meshes):
+            #find the minimum mesh size in all meshes, to build grid
+            if mesh.grid_size < minGrid:
+                minGrid = mesh.grid_size
+        #calculate which grid cells we have mesh elements in
+        Nx = int((xMax-xMin)/minGrid)
+        Ny = int((yMax-yMin)/minGrid)
+        dx = (xMax - xMin)/Nx
+        dy = (yMax - yMin)/Ny
+        x = np.linspace(xMin, xMax, Nx+1)
+        y = np.linspace(yMin, yMax, Ny+1)
+        z = np.zeros((Ny,Nx))
 
-    if mainTraces != None:
-        activeRow = activeCell['row'] if activeCell else None
-        idxs = []
-        idxCombined = []
-        for i,trace in enumerate(mainTraces):
-            idx2 = 0
-            if 0 in mainToggle:
-                #assign color based upon material
-                if activeRow!=None and i==activeRow:
-                    trace['line']['color'] = colorData['selected']
-                    trace['opacity'] = 1.0
-                else:
-                    if tableData[i]['material'] != 0:
-                        trace['line']['color'] = colorData[tableData[i]['material']]
-                    else:
-                        trace['line']['color'] = colorData['default']
-                fig.add_trace(trace)
-                idxs.append(idx1+idx2)
-                idx2 += 1
-            idx1 = idx1 + idx2
-        idData['mainIdxs'] = idxs
+        #mesh traces
+        mesh = meshTraces[toggleVals]
+        for m in mesh:
+            x0 = np.min(np.array(m)[:,0])
+            x1 = np.max(np.array(m)[:,0])
+            y0 = np.min(np.array(m)[:,1])
+            y1 = np.max(np.array(m)[:,1])
+            xLo = int((x0-xMin)/dx)
+            xHi = int((x1-xMin)/dx)
+            yLo = int((y0-yMin)/dy)
+            yHi = int((y1-yMin)/dy)
+            z[yLo:yHi,xLo:xHi] = 0.35
+
+            mapData['minGrid'] = minGrid
+            mapData['Nx'] = Nx
+            mapData['Ny'] = Ny
+            mapData['dx'] = dx
+            mapData['dy'] = dy
+            mapData['z'] = z
+
+        if trigger in mainTriggers and len(mainToggle)>0:
+            #build mainmesh traces
+            for i,mesh in enumerate(mainTraces):
+                x0 = np.min(np.array(mesh)[:,0])
+                x1 = np.max(np.array(mesh)[:,0])
+                y0 = np.min(np.array(mesh)[:,1])
+                y1 = np.max(np.array(mesh)[:,1])
+                xLo = int((x0-xMin)/dx)
+                xHi = int((x1-xMin)/dx)
+                yLo = int((y0-yMin)/dy)
+                yHi = int((y1-yMin)/dy)
+                z[yLo:yHi,xLo:xHi] = 0.6
+
+        if trigger == 'table':
+            if activeCell is not None:
+                row = activeCell['row']
+                mesh = mainTraces[row]
+                x0 = np.min(np.array(mesh)[:,0])
+                x1 = np.max(np.array(mesh)[:,0])
+                y0 = np.min(np.array(mesh)[:,1])
+                y1 = np.max(np.array(mesh)[:,1])
+                xLo = int((x0-xMin)/dx)
+                xHi = int((x1-xMin)/dx)
+                yLo = int((y0-yMin)/dy)
+                yHi = int((y1-yMin)/dy)
+                z[yLo:yHi,xLo:xHi] = 0.9
+
+        fig.add_trace(go.Heatmap(x=x,y=y,z=z, opacity=0.4, showscale=False,
+                              colorscale=cs2, zmin=0.0, zmax=1.0))
+
+    if trigger in contourTriggers:
+        for trace in contourTraces:
+            fig.add_trace(go.Scattergl(x=np.array(trace)[:,0], y=np.array(trace)[:,1], mode='lines'))
+
+
+
+    idData = []
 
     fig.update_layout(showlegend=False)
     fig.update_yaxes(scaleanchor = "x",scaleratio = 1,)
-    return [fig, idData]
+    fig.update_traces()
+    fig.update_layout(dragmode="drawrect")
+
+    config = {
+    "modeBarButtonsToAdd": [
+        "drawrect",
+        "eraseshape",
+    ]}
+
+    return [fig, config, idData, mapData]
+
+
+app.clientside_callback(
+    """
+    function(href) {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        return {'height': h, 'width': w};
+    }
+    """,
+    Output('sizeStore', 'data'),
+    Input('url', 'href')
+)

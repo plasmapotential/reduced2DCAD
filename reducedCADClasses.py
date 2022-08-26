@@ -171,6 +171,20 @@ class CAD2D:
                 traces.append(go.Scattergl(x=R, y=Z, mode='lines+markers'))
         return traces
 
+    def rzTraces(self):
+        """
+        returns a list of contour traces
+        """
+        traces = []
+        for slice in self.contourList:
+            for c in slice:
+                R = np.sqrt(c[:,0]**2+c[:,1]**2)
+                Z = c[:,2]
+                traces.append(np.vstack([R,Z]).T)
+#                traces.append([R,Z])
+        return traces
+
+
 
 class mesh:
 
@@ -535,9 +549,27 @@ class mesh:
         dfs = []
         for f in fileList:
             df = pd.read_csv(f, skiprows=0)
+            df = df.round(8)
             df.columns = ['Rc[m]', 'Zc[m]', 'L[m]', 'W[m]', 'AC1[deg]', 'AC2[deg]', 'NL', 'NW', 'material', 'caf', 'isf']
             dfs.append(df)
         return dfs
+
+    def getRectangleBounds(self,shapeData):
+        #rectangles
+        if 'shapes[0].x0' in shapeData.keys():
+            x0 = shapeData['shapes[0].x0']
+            x1 = shapeData['shapes[0].x1']
+            y0 = shapeData['shapes[0].y0']
+            y1 = shapeData['shapes[0].y1']
+        else:
+            shp = shapeData['shapes'][-1]
+            if shp['type'] == 'rect':
+                x0 = shp['x0']
+                x1 = shp['x1']
+                y0 = shp['y0']
+                y1 = shp['y1']
+        return x0,x1,y0,y1
+
 
     def combineElements(self, data):
         """
@@ -587,10 +619,10 @@ class mesh:
 
         #build new tableData entry
         tableData={}
-        tableData['Rc[m]'] = Rnew
-        tableData['Zc[m]'] = Znew
-        tableData['W[m]'] = Wnew
-        tableData['L[m]'] = Lnew
+        tableData['Rc[m]'] = round(Rnew, 8)
+        tableData['Zc[m]'] = round(Znew, 8)
+        tableData['W[m]'] = round(Wnew, 8)
+        tableData['L[m]'] = round(Lnew, 8)
         tableData['AC1[deg]'] = 0
         tableData['AC2[deg]'] = 0
         tableData['NL'] = 1
@@ -601,19 +633,18 @@ class mesh:
 
         #get plotly trace
         xy = np.zeros((5,2))
-        xy[0,0] = ( Rnew - Wnew/2.0 ) *1e3 #m to mm
-        xy[0,1] = ( Znew - Lnew/2.0 ) *1e3 #m to mm
-        xy[1,0] = ( Rnew - Wnew/2.0 ) *1e3 #m to mm
-        xy[1,1] = ( Znew + Lnew/2.0 ) *1e3 #m to mm
-        xy[2,0] = ( Rnew + Wnew/2.0 ) *1e3 #m to mm
-        xy[2,1] = ( Znew + Lnew/2.0 ) *1e3 #m to mm
-        xy[3,0] = ( Rnew + Wnew/2.0 ) *1e3 #m to mm
-        xy[3,1] = ( Znew - Lnew/2.0 ) *1e3 #m to mm
-        xy[4,0] = ( Rnew - Wnew/2.0 ) *1e3 #m to mm
-        xy[4,1] = ( Znew - Lnew/2.0 ) *1e3 #m to mm
-        trace = self.XYtrace(xy, opac=0.4)
+        xy[0,0] = np.round(( Rnew - Wnew/2.0 ) *1e3, 8) #m to mm
+        xy[0,1] = np.round(( Znew - Lnew/2.0 ) *1e3, 8) #m to mm
+        xy[1,0] = np.round(( Rnew - Wnew/2.0 ) *1e3, 8) #m to mm
+        xy[1,1] = np.round(( Znew + Lnew/2.0 ) *1e3, 8) #m to mm
+        xy[2,0] = np.round(( Rnew + Wnew/2.0 ) *1e3, 8) #m to mm
+        xy[2,1] = np.round(( Znew + Lnew/2.0 ) *1e3, 8) #m to mm
+        xy[3,0] = np.round(( Rnew + Wnew/2.0 ) *1e3, 8) #m to mm
+        xy[3,1] = np.round(( Znew - Lnew/2.0 ) *1e3, 8) #m to mm
+        xy[4,0] = np.round(( Rnew - Wnew/2.0 ) *1e3, 8) #m to mm
+        xy[4,1] = np.round(( Znew - Lnew/2.0 ) *1e3, 8) #m to mm
 
-        return grid, trace, tableData, [Rnew, Znew]
+        return grid, xy, tableData, [Rnew, Znew]
 
 
     def addMeshPlots2Fig(self, fig, solutions, opac=0.4):
@@ -625,13 +656,6 @@ class mesh:
                 xs, ys = np.array(geom.exterior.xy)
                 fig.add_trace(go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='mesh'))
         return fig
-
-    def XYtrace(self, xy, opac=0.4):
-        """
-        returns trace of XY points
-        """
-        trace = go.Scattergl(x=xy[:,0], y=xy[:,1], mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color="seagreen"), meta='combined')
-        return trace
 
     def getMeshTraces(self, parallel=False):
         """
@@ -646,16 +670,11 @@ class mesh:
         #loop thru all mesh elements and add them to the trace
         self.selection = []
         N = len(self.geoms)
-
         print("Parallel Multiprocessing Run Commencing...")
         #Do this try clause to kill any zombie threads that don't terminate
         try:
             manager = multiprocessing.Manager()
             self.traces = manager.list([None]*N)
-            self.x = manager.list()
-            self.y = manager.list()
-            self.selection = manager.list()
-            self.idxMap = manager.list()
             pool = multiprocessing.Pool(Ncores)
             pool.map(self.parallelMeshTraceAdd, np.arange(N))
         finally:
@@ -664,45 +683,12 @@ class mesh:
             del pool
             del manager
 
-        opac = 0.4
-        col = 'seagreen'
-        #self.traces = []
-        #tmpX = [list(a)+[None] for a in self.x]
-        #flatX = [x for xs in tmpX for x in xs]
-        #tmpY = [list(a)+[None] for a in self.y]
-        #flatY = [y for ys in tmpY for y in ys]
-        #self.traces.append(go.Scattergl(x=flatX, y=flatY, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
-        #return list(np.array(self.traces)[np.array(self.idxMap[:])])
-
-        use = np.where(np.array(self.traces[:])!=None)[0]
-        return list(np.array(self.traces)[use])
+        return np.array(self.traces)
 
     def parallelMeshTraceAdd(self, i):
         #generate a random color for this trace
-        #c = list(np.random.choice(range(256), size=3))
-        #col = 'rgb({:d},{:d},{:d})'.format(c[0],c[1],c[2])
-        opac = 0.4
-        col = 'seagreen'
         xs, ys = np.array(self.geoms[i].exterior.xy)
-        #if we selected a bounding box in the figure, only include
-        #elements within the bounds
-        if self.bounds != None:
-            test1 = np.max(xs) < self.bounds['x'][0]
-            test2 = np.min(xs) > self.bounds['x'][1]
-            test3 = np.max(ys) < self.bounds['y'][0]
-            test4 = np.min(ys) > self.bounds['y'][1]
-            if (test1 or test2 or test3 or test4) == False:
-                self.selection.append(i)
-                #self.x.append(xs)
-                #self.y.append(ys)
-                #self.traces.append(go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh_{:}'))
-                self.traces[i] = go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh_{:}')
-        else:
-            #self.x.append(xs)
-            #self.y.append(ys)
-            #self.traces.append(go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh'))
-            self.traces[i] = go.Scattergl(x=xs, y=ys, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='mesh_{:}')
-        self.idxMap.append(i)
+        self.traces[i] = np.vstack([xs,ys]).T
         return
 
     def tracesFromPtable(self, df, opac=0.4):
@@ -722,6 +708,8 @@ class mesh:
         self.solutions[0].geoms = []
         self.geoms = []
         self.grid_size = []
+        self.W = []
+        self.L = []
 
         for i in range(len(R)):
             xs = np.array([
@@ -740,10 +728,13 @@ class mesh:
                             ])
             #create dummy solutions and geoms accounting for units m=>mm
             self.solutions[0].geoms.append(geomClass(R[i]*1000.0,Z[i]*1000.0))
-            self.grid_size.append([W[i]*1000.0, L[i]*1000.0])
-            #append trace with data scaled from m to mm
-            traces.append(go.Scattergl(x=xs*1000.0, y=ys*1000.0, mode='lines+markers', marker_size=2, fill="toself", opacity=opac, line=dict(color=col), meta='pTable'))
 
+            #append trace with data scaled from m to mm
+            trc = np.round(np.vstack([xs*1000.0,ys*1000.0]).T, 8)
+            traces.append(trc)
+
+        minGrid = np.min(np.array([W,L]))
+        self.grid_size = minGrid*1000.0
         self.geoms = self.solutions[0].geoms
         return traces
 

@@ -2,17 +2,16 @@
 #Description:   launcher for the 2D reduced model app
 #Engineer:      T Looby
 #Date:          20220519
-
 import reducedCADClasses as RC
 import argparse
 import os
 import plotly.graph_objects as go
 import pandas as pd
 
-fig = go.Figure()
-df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'material':[], 'NL':[],'NW':[], 'caf':[], 'isf':[]})
 #launch the GUI
 import reducedCADapp as GUI
+fig = go.Figure()
+df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'material':[], 'NL':[],'NW':[], 'caf':[], 'isf':[]})
 GUI.generateLayout(fig, df)
 
 if __name__ == '__main__':
