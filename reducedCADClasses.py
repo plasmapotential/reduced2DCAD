@@ -576,6 +576,9 @@ class mesh:
         combines multiple mesh elements into a single element.
         Only works for square/rectangular elements
         """
+        #meter to mm unit conversion
+        m2mm = 1000.0
+
         Rc = [x['Rc[m]'] for x in data]
         RminIdxs = [i for i, x in enumerate(Rc) if x == min(Rc)]
         RmaxIdxs = [i for i, x in enumerate(Rc) if x == max(Rc)]
@@ -615,7 +618,7 @@ class mesh:
         #print(Lmin)
 
         #new grid
-        grid = [Wnew, Lnew]
+        grid = [Wnew*m2mm, Lnew*m2mm]
 
         #build new tableData entry
         tableData={}
@@ -644,7 +647,7 @@ class mesh:
         xy[4,0] = np.round(( Rnew - Wnew/2.0 ) *1e3, 8) #m to mm
         xy[4,1] = np.round(( Znew - Lnew/2.0 ) *1e3, 8) #m to mm
 
-        return grid, xy, tableData, [Rnew, Znew]
+        return grid, xy, tableData, [Rnew*m2mm, Znew*m2mm]
 
 
     def addMeshPlots2Fig(self, fig, solutions, opac=0.4):

@@ -677,7 +677,6 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
             tableData.append(tData)
 
 
-
     elif button_id == 'table':
         if prev_tableData is None:
             raise PreventUpdate
