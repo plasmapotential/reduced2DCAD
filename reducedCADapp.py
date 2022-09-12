@@ -860,6 +860,8 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle,
     fig.update_yaxes(scaleanchor = "x",scaleratio = 1,)
     fig.update_traces()
     fig.update_layout(dragmode="drawrect")
+    #this allows zoom to be preserved across button clicks
+    fig.update_layout(uirevision='neverUpdate')
 
     config = {
     "modeBarButtonsToAdd": [
