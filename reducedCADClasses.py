@@ -570,27 +570,27 @@ class mesh:
                 y1 = shp['y1']
 
 
-        print("Bounding box")
-        print(x0)
-        print(x1)
-        print(y0)
-        print(y1)
-
-        #added for no-added-to-main bug
-        if x0 > x1:
-            xTmp = x1
-            x1 = x0
-            x0 = xTmp
-        if y0 > y1:
-            yTmp = y1
-            y1 = y0
-            y0 = yTmp
-
-        print("Bounding box after")
-        print(x0)
-        print(x1)
-        print(y0)
-        print(y1)
+#        print("Bounding box")
+#        print(x0)
+#        print(x1)
+#        print(y0)
+#        print(y1)
+#
+#        #added for no-added-to-main bug
+#        if x0 > x1:
+#            xTmp = x1
+#            x1 = x0
+#            x0 = xTmp
+#        if y0 > y1:
+#            yTmp = y1
+#            y1 = y0
+#            y0 = yTmp
+#
+#        print("Bounding box after")
+#        print(x0)
+#        print(x1)
+#        print(y0)
+#        print(y1)
 
         return x0,x1,y0,y1
 
