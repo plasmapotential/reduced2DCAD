@@ -568,6 +568,15 @@ class mesh:
                 x1 = shp['x1']
                 y0 = shp['y0']
                 y1 = shp['y1']
+
+        if x0 > x1:
+            xTmp = x1
+            x1 = x0
+            x0 = xTmp
+        if y0 > y1:
+            yTmp = y1
+            y1 = y0
+            y0 = yTmp
         return x0,x1,y0,y1
 
 
