@@ -19,7 +19,7 @@ ENV runMode docker
 ENV AppDir /root
 ENV APPDIR /root
 ENV DEBIAN_FRONTEND noninteractive
-ENV PYTHONPATH $PYTHONPATH:/usr/lib/freecad-python3/lib:/root/source/reduced2DCAD/github:/root/source/HEAT
+ENV PYTHONPATH $PYTHONPATH:/usr/lib/freecad-python3/lib:/root/source/reduced2DCAD/github:/root/source/HEAT:/usr/lib/freecad-daily/lib
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/netgen
 
 # install system-wide deps for HEAT
@@ -29,11 +29,11 @@ RUN apt-get -yqq install python3-pip
 RUN apt-get -yqq install python3-pkg-resources
 RUN apt-get -yqq install python3-distutils
 #RUN apt-get -yqq install libfreecad-python3-0.18
-RUN apt-get -yqq install libfreecad-python3-0.19
-#RUN apt-get install -yqq software-properties-common
-#RUN add-apt-repository ppa:freecad-maintainers/freecad-daily
-#RUN apt-get update
-#RUN apt-get install -yqq libfreecad-daily-python3-0.19
+#RUN apt-get -yqq install libfreecad-python3-0.19
+RUN apt-get install -yqq software-properties-common
+RUN add-apt-repository ppa:freecad-maintainers/freecad-daily
+RUN apt-get update
+RUN apt-get install -yqq freecad-daily-python3
 RUN apt-get -yqq install libnglib-6.2
 RUN apt-get -yqq install coreutils
 RUN apt-get -yqq install nano

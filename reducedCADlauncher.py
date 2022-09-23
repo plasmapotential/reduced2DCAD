@@ -14,6 +14,7 @@ fig = go.Figure()
 df = pd.DataFrame({'Rc[m]':[], 'Zc[m]':[], 'L[m]':[], 'W[m]':[], 'AC1[deg]':[], 'AC2[deg]':[], 'material':[], 'NL':[],'NW':[], 'caf':[], 'isf':[]})
 GUI.generateLayout(fig, df)
 
+#main app
 if __name__ == '__main__':
     #parse command line arguments
     parser = argparse.ArgumentParser(description=""" Use this command to launch crossSections2Mesh """)
