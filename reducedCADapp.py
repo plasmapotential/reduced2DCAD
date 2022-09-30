@@ -563,7 +563,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
             mesh = meshes[toggleVal]
             mT = meshTraces[toggleVal]
 
-            x0,x1,y0,y1 = mesh.getRectangleBounds(shapeData)
+            xLo,xHi,yLo,yHi = mesh.getRectangleBounds(shapeData)
 
             z = np.zeros((mapData['Ny'],mapData['Nx']))
             for m in mT:
@@ -572,7 +572,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
                 xM1 = np.max(np.array(m)[:,0])
                 yM0 = np.min(np.array(m)[:,1])
                 yM1 = np.max(np.array(m)[:,1])
-                if xM0 > x0 and xM1 < x1 and yM0 > y1 and yM1 < y0:
+                if xM0 > xLo and xM1 < xHi and yM0 > yLo and yM1 < yHi:
                     mainTraces.append(m)
                     #get ptable data for this m
                     gridSizes.append([mesh.grid_size, mesh.grid_size])
@@ -607,7 +607,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
                 print("No properties entered...")
                 raise PreventUpdate
 
-            x0,x1,y0,y1 = meshes[0].getRectangleBounds(shapeData)
+            xLo,xHi,yLo,yHi = meshes[0].getRectangleBounds(shapeData)
 
             minR = 10000.0
             maxR = 0.0
@@ -622,7 +622,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
                 yM0 = np.min(np.array(m)[:,1])
                 yM1 = np.max(np.array(m)[:,1])
 
-                if xM0 > x0 and xM1 < x1 and yM0 > y1 and yM1 < y0:
+                if xM0 > xLo and xM1 < xHi and yM0 > yLo and yM1 < yHi:
                     try:
                         tableData[i]['material'] = matGrp
                         tableData[i]['NL'] = nlGrp
@@ -640,7 +640,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
             if mainTraces == None:
                 mainTraces = []
 
-            x0,x1,y0,y1 = meshes[0].getRectangleBounds(shapeData)
+            xLo,xHi,yLo,yHi = meshes[0].getRectangleBounds(shapeData)
 
             minR = 10000.0
             maxR = 0.0
@@ -656,7 +656,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
                 yM0 = np.min(np.array(m)[:,1])
                 yM1 = np.max(np.array(m)[:,1])
 
-                if xM0 > x0 and xM1 < x1 and yM0 > y1 and yM1 < y0:
+                if xM0 > xLo and xM1 < xHi and yM0 > yLo and yM1 < yHi:
                     idxs.append(i)
                     #find bounds of mesh in box
                     if xM0 < minR: minR = xM0
@@ -853,7 +853,7 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle,
 
     if trigger in contourTriggers:
         for trace in contourTraces:
-            fig.add_trace(go.Scattergl(x=np.array(trace)[:,0], y=np.array(trace)[:,1], mode='lines'))
+            fig.add_trace(go.Scatter(x=np.array(trace)[:,0], y=np.array(trace)[:,1], mode='lines'))
 
 
 

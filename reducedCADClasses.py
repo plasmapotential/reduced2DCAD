@@ -16,6 +16,7 @@ import sys
 import argparse
 import multiprocessing
 from functools import partial
+import re
 
 class CAD3D:
 
@@ -555,12 +556,17 @@ class mesh:
         return dfs
 
     def getRectangleBounds(self,shapeData):
+
+        k = shapeData.keys()
+        regex = re.compile('shapes\[.+')
+        tmp = [string for string in list(k) if re.match(regex,string)]
         #rectangles
-        if 'shapes[0].x0' in shapeData.keys():
-            x0 = shapeData['shapes[0].x0']
-            x1 = shapeData['shapes[0].x1']
-            y0 = shapeData['shapes[0].y0']
-            y1 = shapeData['shapes[0].y1']
+        if len(tmp) > 0: #case for multiple rectangles
+            idx = tmp[-1].split('[')[1].split(']')[0]
+            x0 = shapeData['shapes['+idx+'].x0']
+            x1 = shapeData['shapes['+idx+'].x1']
+            y0 = shapeData['shapes['+idx+'].y0']
+            y1 = shapeData['shapes['+idx+'].y1']
         else:
             shp = shapeData['shapes'][-1]
             if shp['type'] == 'rect':
@@ -570,29 +576,33 @@ class mesh:
                 y1 = shp['y1']
 
 
-#        print("Bounding box")
-#        print(x0)
-#        print(x1)
-#        print(y0)
-#        print(y1)
-#
-#        #added for no-added-to-main bug
-#        if x0 > x1:
-#            xTmp = x1
-#            x1 = x0
-#            x0 = xTmp
-#        if y0 > y1:
-#            yTmp = y1
-#            y1 = y0
-#            y0 = yTmp
-#
-#        print("Bounding box after")
-#        print(x0)
-#        print(x1)
-#        print(y0)
-#        print(y1)
+        print("Rectangle Data From GUI:")
+        print("xLo = {:f}".format(x0))
+        print("xHi = {:f}".format(x1))
+        print("yLo = {:f}".format(y0))
+        print("yHi = {:f}".format(y1))
 
-        return x0,x1,y0,y1
+        if x0 < x1:
+            xLo = x0
+            xHi = x1
+        else:
+            xLo = x1
+            xHi = x0
+
+        if y0 < y1:
+            yLo = y0
+            yHi = y1
+        else:
+            yLo = y1
+            yHi = y0
+
+        print("Rectangle Data After Conditional:")
+        print("xLo = {:f}".format(xLo))
+        print("xHi = {:f}".format(xHi))
+        print("yLo = {:f}".format(yLo))
+        print("yHi = {:f}".format(yHi))
+
+        return xLo,xHi,yLo,yHi
 
 
     def combineElements(self, data):
