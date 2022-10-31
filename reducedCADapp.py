@@ -383,6 +383,9 @@ def loadSection(n_clicks, rMax, zMax, phi, fig, discreteTog):
     if n_clicks == None or n_clicks < 1:
         raise PreventUpdate
     else:
+        if hasattr(CAD3D, 'CAD') != True:
+            print("No CAD loaded.  Load CAD before sectioning.")
+            raise PreventUpdate
         #create cross section
         CAD2D.sectionParams(float(rMax),float(zMax),float(phi),discreteTog)
         CAD2D.sectionCAD(CAD3D.CAD)
@@ -488,7 +491,11 @@ def loadGrid(n_clicks, fileName, contents, gridSize, meshTraces, meshToggles, me
     else:
         t0 = time.time()
         type = 'square'
-        name = type + '{:.3f}'.format(float(gridSize))
+        try:
+            name = type + '{:.3f}'.format(float(gridSize))
+        except:
+            print("Could not load Grid Size input.  Check text box before proceeding.")
+            raise PreventUpdate
         #check if this mesh is already in the meshList
         test1 = [m.meshType==type for m in meshes]
         test2 = [m.grid_size==float(gridSize) for m in meshes]
