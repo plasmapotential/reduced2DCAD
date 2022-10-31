@@ -12,6 +12,7 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
+from dash_bootstrap_templates import ThemeSwitchAIO, ThemeChangerAIO
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
@@ -70,14 +71,38 @@ styles = {
         'border': 'thin lightgrey solid',
         'overflowX': 'scroll'
     },
-    'bigApp': {
+    'banner': {
+        'display': 'flex',
+        'flex-direction': 'column',
+        'width': '100vw',
+        'height': '5vh',
+    },
+    'entireWindow': {
         'max-width': '100%',
         'display': 'flex',
-        'flex-direction': 'row',
+        'flex-direction': 'column',
         'width': '100vw',
         'height': '95vh',
         'vertical-align': 'middle',
         'justify-content': 'center',
+    },
+    'bigApp': {
+        'max-width': '100%',
+        'display': 'flex',
+        'flex-direction': 'row',
+        'width': '100%',
+        'height': '95%',
+        'vertical-align': 'bottom',
+        'align-items': 'center',
+        'justify-content': 'center',
+    },
+    'banner': {
+        'width': '100%',
+        'height': '5%',
+        'display': 'flex',
+        'flex-direction': 'row',
+        'justify-content':'flex-end',
+        'vertical-align':'middle',
     },
     'col2': {
         'width': '45%',
@@ -96,6 +121,8 @@ styles = {
         'width': '100%',
         'height': '90%',
         'justify-content': 'center',
+        'vertical-align':'center',
+        'align-items':'center',
     },
     'btnRow': {
         'height': '10%',
@@ -134,30 +161,13 @@ def generateLayout(fig, df):
         dcc.Store(id='idData', storage_type='memory'),
         dcc.Store(id='mapData', storage_type='memory'),
 
-        #graph Div
+        html.Div([themeToggle()], style=styles['banner']),
+
+        #App Div
         html.Div([
             html.Div([
                 dbc.Accordion(
                     [
-                    dbc.AccordionItem(
-                        [
-                            html.Div([
-                                html.H6("Environment Settings"),
-                                html.Label(children="HEAT Path: "),
-                                dcc.Input(id="HEATpath", value=HEAT),
-                                html.Label(children="Path to Source Code: "),
-                                dcc.Input(id="sourcePath", value=sourcePath),
-                                html.Label(children="Path to FreeCAD libs: "),
-                                dcc.Input(id="freeCADPath", value=FreeCADPath),
-                                html.Label(children="Path to save output: "),
-                                dcc.Input(id="outPath", value=filesPath),
-                                ],
-                                style=styles['column']
-                                )
-
-                        ],
-                    title="Environment",
-                    ),
                     dbc.AccordionItem(
                         [
                             CADdiv()
@@ -205,6 +215,26 @@ def generateLayout(fig, df):
                         ],
                     title="Table",
                     ),
+                    dbc.AccordionItem(
+                        [
+                            html.Div([
+                                html.H6("Environment Settings"),
+                                html.Label(children="HEAT Path: "),
+                                dbc.Input(id="HEATpath", value=HEAT, readonly=True),
+                                html.Label(children="Path to Source Code: "),
+                                dbc.Input(id="sourcePath", value=sourcePath,  readonly=True),
+                                html.Label(children="Path to FreeCAD libs: "),
+                                dbc.Input(id="freeCADPath", value=FreeCADPath,  readonly=True),
+                                html.Label(children="Path to save output: "),
+                                dbc.Input(id="outPath", value=filesPath,  readonly=True),
+                                ],
+                                style=styles['column']
+                                )
+
+                        ],
+                    title="Environment (read only)",
+                    ),
+
                     ],
                     style=styles['table'],
                     active_item="CAD",
@@ -213,6 +243,7 @@ def generateLayout(fig, df):
             ],
             style=styles['column'],
             ),
+            html.Br(),
             html.Div([
                 dcc.Graph(
                     id='polyGraph',
@@ -227,8 +258,35 @@ def generateLayout(fig, df):
             style=styles['bigApp']
             ),
         ],
-        style=styles['bigApp']
+        style=styles['entireWindow']
         )
+
+def themeToggle():
+    """
+    returns a div with theme toggling
+    """
+
+    themes_list = [
+        dbc.themes.COSMO,
+        dbc.themes.SLATE
+        ]
+
+    themeToggle = html.Div(
+        [
+            #for toggling between two themes
+            #ThemeChangerAIO(aio_id="theme", themes=themes_list, )
+            #for switching between multiple themes
+            dbc.Row(ThemeChangerAIO(aio_id="theme",
+                                    radio_props={"value":dbc.themes.COSMO},
+                                    offcanvas_props={'placement':'end'}
+                                    ),
+                    ),
+        ],
+        #style=styles['themeToggle'],
+    )
+
+    return themeToggle
+
 
 def CADdiv():
     """
@@ -291,11 +349,11 @@ def sectionDiv():
     """
     div = html.Div([
             html.Label(children="Toroidal angle (phi) of section [degrees]: "),
-            dcc.Input(id="phi", value=0),
+            dbc.Input(id="phi", value=0),
             html.Label(children="Rmax of cutting plane [mm] (width=0 to Rmax): "),
-            dcc.Input(id="rMax", value=5000),
+            dbc.Input(id="rMax", value=5000),
             html.Label(children="Zrange of cutting plane [mm] (height above z=0): "),
-            dcc.Input(id="zMax", value=10000),
+            dbc.Input(id="zMax", value=10000),
             html.Hr(),
             dbc.Checklist(
                 options=[{'label':"Discretize Curves?", 'value':1}],
@@ -341,7 +399,7 @@ def meshCreateDiv():
     div = html.Div([
                 html.H6("Create New Mesh"),
                 html.Label("Grid Size [mm]:", style={'margin':'0 10px 0 10px'}),
-                dcc.Input(id="gridSize"),
+                dbc.Input(id="gridSize"),
                 dbc.Button("Create Grid", color="primary", id="loadGrid"),
                 html.Div(id="hiddenDivMesh"),
                 html.Hr(),
@@ -494,7 +552,6 @@ def meshDisplayDiv():
 
                         ),
                 html.Hr(),
-                dbc.Button("Add selection to main mesh", color="primary", id="addSelect"),
                 html.Br(),
                 html.H6("Main Mesh: "),
                 dbc.Checklist(
@@ -715,20 +772,23 @@ def mainOpsDiv():
     div for operations on main mesh
     """
     div = html.Div([
+            html.H6("Edit Main Mesh:"),
+            dbc.Button("Add selection to main mesh", color="primary", id="addSelect"),
+            html.Hr(),
             dbc.Button("Combine selected elements", color="primary", id="combine"),
             html.Div(id="hiddenDivMainOps"),
             html.Hr(),
             html.H6("Change element properties"),
             html.Label("Material:", style={'margin':'0 10px 0 10px'}),
-            dcc.Input(id="matGrp"),
+            dbc.Input(id="matGrp"),
             html.Label("NL:", style={'margin':'0 10px 0 10px'}),
-            dcc.Input(id="nlGrp"),
+            dbc.Input(id="nlGrp"),
             html.Label("NW:", style={'margin':'0 10px 0 10px'}),
-            dcc.Input(id="nwGrp"),
+            dbc.Input(id="nwGrp"),
             html.Label("caf:", style={'margin':'0 10px 0 10px'}),
-            dcc.Input(id="cafGrp"),
+            dbc.Input(id="cafGrp"),
             html.Label("isf:", style={'margin':'0 10px 0 10px'}),
-            dcc.Input(id="isfGrp"),
+            dbc.Input(id="isfGrp"),
             dbc.Button("Assign properties to selection", color="primary", id="assignID"),
 
         ],
