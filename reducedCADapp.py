@@ -148,6 +148,9 @@ styles = {
 }
 
 def generateLayout(fig, df):
+    #generate an id column for dataframe
+    df['id'] = df.index
+
     #generate HTML5 application
     app.layout = html.Div([
         dcc.Location(id='url'),
@@ -203,12 +206,18 @@ def generateLayout(fig, df):
                                 dash_table.DataTable(
                                     id='table',
                                     columns=[{"name": i, "id": i}
-                                        for i in df.columns],
+                                        for i in df.columns
+                                        #omit id column
+                                        if i != 'id'
+                                        ],
                                     data=df.to_dict('records'),
                                     export_format="csv",
                                     style_cell=dict(textAlign='left'),
                                     row_deletable=True,
+                                    #row_selectable='multi',
                                     selected_rows=[],
+                                    editable=False,
+
                                     #style_header=dict(backgroundColor="paleturquoise"),
                                     #style_data=dict(backgroundColor="lavender")
                                     ),
@@ -653,6 +662,7 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
 
             #create pandas df
             df = meshes[0].createDFsFromCSVs(pTableOut)[0]
+            df['id'] = df.index
             tableData = df.to_dict('records')
             print("Updated Table and Added to Main")
         else:
@@ -813,12 +823,12 @@ def mainOpsDiv():
                Input('meshToggles','value'),
                Input('mainTraces', 'data'),
                Input('mainToggle', 'value'),
-               Input('table', 'active_cell'),],
+               Input('table', 'selected_cells'),],
                [State('table', 'data'),
                 State('sizeStore', 'data')]
                )
 def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle,
-                activeCell, tableData, size):
+                activeCells, tableData, size):
     """
     updates the figure.  the figure contains a heatmap and a scatter trace
 
@@ -862,6 +872,8 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle,
         #calculate which grid cells we have mesh elements in
         Nx = int((xMax-xMin)/minGrid)
         Ny = int((yMax-yMin)/minGrid)
+        if Nx==0 or Ny==0: #nothing loaded yet
+            raise PreventUpdate
         dx = (xMax - xMin)/Nx
         dy = (yMax - yMin)/Ny
         x = np.linspace(xMin, xMax, Nx+1)
@@ -902,18 +914,19 @@ def updateGraph(contourTraces, meshTraces, toggleVals, mainTraces, mainToggle,
                 z[yLo:yHi,xLo:xHi] = 0.6
 
         if trigger == 'table':
-            if activeCell is not None:
-                row = activeCell['row']
-                mesh = mainTraces[row]
-                x0 = np.min(np.array(mesh)[:,0])
-                x1 = np.max(np.array(mesh)[:,0])
-                y0 = np.min(np.array(mesh)[:,1])
-                y1 = np.max(np.array(mesh)[:,1])
-                xLo = int((x0-xMin)/dx)
-                xHi = int((x1-xMin)/dx)
-                yLo = int((y0-yMin)/dy)
-                yHi = int((y1-yMin)/dy)
-                z[yLo:yHi,xLo:xHi] = 0.9
+            if activeCells is not None:
+                rows = [int(a['row_id']) for a in activeCells]
+                for row in rows:
+                    mesh = mainTraces[row]
+                    x0 = np.min(np.array(mesh)[:,0])
+                    x1 = np.max(np.array(mesh)[:,0])
+                    y0 = np.min(np.array(mesh)[:,1])
+                    y1 = np.max(np.array(mesh)[:,1])
+                    xLo = int((x0-xMin)/dx)
+                    xHi = int((x1-xMin)/dx)
+                    yLo = int((y0-yMin)/dy)
+                    yHi = int((y1-yMin)/dy)
+                    z[yLo:yHi,xLo:xHi] = 0.9
 
         fig.add_trace(go.Heatmap(x=x,y=y,z=z, opacity=0.4, showscale=False,
                               colorscale=cs2, zmin=0.0, zmax=1.0))
