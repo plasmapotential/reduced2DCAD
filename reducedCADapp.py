@@ -221,6 +221,8 @@ def generateLayout(fig, df):
                                     #style_header=dict(backgroundColor="paleturquoise"),
                                     #style_data=dict(backgroundColor="lavender")
                                     ),
+                                dbc.Button("Delete Selection", color="primary", id="delete"),
+
                         ],
                     title="Table",
                     ),
@@ -590,7 +592,8 @@ def meshDisplayDiv():
               [Input('addSelect', 'n_clicks'),
                Input('assignID', 'n_clicks'),
                Input('combine', 'n_clicks'),
-               Input('table', 'data_previous'),],
+               Input('table', 'data_previous'),
+               Input('delete', 'n_clicks'),],
               [State('meshTraces', 'data'),
                State('mainTraces', 'data'),
                State('meshToggles', 'value'),
@@ -604,12 +607,15 @@ def meshDisplayDiv():
                State('nwGrp', 'value'),
                State('cafGrp', 'value'),
                State('isfGrp', 'value'),
+               State('table', 'selected_cells'),
                ],
                )
-def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
+def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine,
+             prev_tableData, n_clicks_delete,
              meshTraces, mainTraces, toggleVal, mapData,
              idData, outPath,tableData, shapeData,
-             matGrp,nlGrp,nwGrp,cafGrp,isfGrp
+             matGrp,nlGrp,nwGrp,cafGrp,isfGrp,
+             activeCells,
              ):
     """
     add to main mesh callbacks
@@ -763,6 +769,25 @@ def add2Main(n_clicks_select, n_clicks_assign, n_clicks_combine, prev_tableData,
             mainTraces.pop(removedIdx)
             centroids.pop(removedIdx)
             gridSizes.pop(removedIdx)
+
+
+    elif button_id == 'delete':
+        if len(tableData) == 0:
+            raise PreventUpdate
+        else:
+            rows2del = [int(a['row_id']) for a in activeCells]
+            print("Deleting Rows:")
+            print(rows2del)
+            for x in reversed(range(len(mainTraces))):
+                if x in rows2del:
+                    mainTraces.pop(x)
+                    centroids.pop(x)
+                    gridSizes.pop(x)
+                    tableData.pop(x)
+
+    #append ID to table for referencing when we build plot
+    for i in range(len(tableData)):
+        tableData[i]['id'] = i
 
     options = [{'label':'Main Mesh', 'value':0}]
     value = [0]
