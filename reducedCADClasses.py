@@ -28,6 +28,13 @@ class CAD3D:
         loads the HEAT environment, loads CADclass object into self
         Requires the HEAT environment to be installed either locally or via
         docker
+
+        Example usage:
+            HEATPath = '/home/tom/source/HEAT/github/source'
+            sys.path.append(HEATPath)
+            import launchHEAT
+            launchHEAT.loadEnviron()
+            import CADClass
         """
         sys.path.append(HEATpath)
 
